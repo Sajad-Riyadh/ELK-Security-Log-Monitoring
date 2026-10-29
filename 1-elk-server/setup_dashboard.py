@@ -96,6 +96,7 @@ def build_dashboard(dv_id):
         "panelIndex": "panel-header",
         "embeddableConfig": {
             "savedVis": {
+                "id": "",
                 "title": "",
                 "description": "",
                 "type": "markdown",
@@ -110,7 +111,8 @@ def build_dashboard(dv_id):
                 },
                 "uiState": {},
                 "data": {"aggs": [], "searchSource": {"query": {"query": "", "language": "kuery"}, "filter": []}}
-            }
+            },
+            "enhancements": {}
         }
     })
 
@@ -580,20 +582,104 @@ def build_dashboard(dv_id):
     })
     references.append({"type": "index-pattern", "id": dv_id, "name": f"{panel_ag_id}:indexpattern-datasource-layer-{ag_layer_id}"})
 
-    # 8. Real-Time Live Security Log Stream (Discover Embedded Table) (x=0, y=37, w=48, h=16)
+    # 8. Real-Time Live Security Log Stream (Lens Datatable) (x=0, y=37, w=48, h=16)
+    table_layer_id = str(uuid.uuid4())
+    col_t_time = str(uuid.uuid4())
+    col_t_type = str(uuid.uuid4())
+    col_t_host = str(uuid.uuid4())
+    col_t_count = str(uuid.uuid4())
     panel_stream_id = "panel-live-stream"
+
     panels.append({
-        "type": "search",
+        "version": "8.9.0",
+        "type": "lens",
         "panelIndex": panel_stream_id,
         "gridData": {"x": 0, "y": 37, "w": 48, "h": 16, "i": panel_stream_id},
-        "panelRefName": f"panel_{panel_stream_id}",
-        "embeddableConfig": {}
+        "embeddableConfig": {
+            "attributes": {
+                "title": "📋 Real-Time Security Events Log Stream",
+                "visualizationType": "lnsDatatable",
+                "type": "lens",
+                "references": [
+                    {"type": "index-pattern", "id": dv_id, "name": f"indexpattern-datasource-layer-{table_layer_id}"}
+                ],
+                "state": {
+                    "visualization": {
+                        "columns": [
+                            {"columnId": col_t_time, "isTransposed": False},
+                            {"columnId": col_t_type, "isTransposed": False},
+                            {"columnId": col_t_host, "isTransposed": False},
+                            {"columnId": col_t_count, "isTransposed": False}
+                        ],
+                        "layerId": table_layer_id,
+                        "layerType": "data"
+                    },
+                    "query": {"query": "", "language": "kuery"},
+                    "filters": [],
+                    "datasourceStates": {
+                        "formBased": {
+                            "layers": {
+                                table_layer_id: {
+                                    "columns": {
+                                        col_t_time: {
+                                            "label": "Timestamp",
+                                            "dataType": "date",
+                                            "operationType": "date_histogram",
+                                            "scale": "interval",
+                                            "sourceField": "@timestamp",
+                                            "isBucketed": True,
+                                            "params": {"interval": "auto"}
+                                        },
+                                        col_t_type: {
+                                            "label": "Event Type",
+                                            "dataType": "string",
+                                            "operationType": "terms",
+                                            "scale": "ordinal",
+                                            "sourceField": "event_type.keyword",
+                                            "isBucketed": True,
+                                            "params": {
+                                                "size": 10,
+                                                "orderBy": {"type": "column", "columnId": col_t_count},
+                                                "orderDirection": "desc",
+                                                "otherBucket": False,
+                                                "missingBucket": False
+                                            }
+                                        },
+                                        col_t_host: {
+                                            "label": "Target Host",
+                                            "dataType": "string",
+                                            "operationType": "terms",
+                                            "scale": "ordinal",
+                                            "sourceField": "host.name.keyword",
+                                            "isBucketed": True,
+                                            "params": {
+                                                "size": 5,
+                                                "orderBy": {"type": "column", "columnId": col_t_count},
+                                                "orderDirection": "desc",
+                                                "otherBucket": False,
+                                                "missingBucket": False
+                                            }
+                                        },
+                                        col_t_count: {
+                                            "label": "Event Count",
+                                            "dataType": "number",
+                                            "operationType": "count",
+                                            "scale": "ratio",
+                                            "sourceField": "___records___",
+                                            "isBucketed": False,
+                                            "params": {"emptyAsNull": True}
+                                        }
+                                    },
+                                    "columnOrder": [col_t_time, col_t_type, col_t_host, col_t_count]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     })
-    references.append({
-        "name": f"panel_{panel_stream_id}",
-        "type": "search",
-        "id": SEARCH_ID
-    })
+    references.append({"type": "index-pattern", "id": dv_id, "name": f"{panel_stream_id}:indexpattern-datasource-layer-{table_layer_id}"})
 
     # Interactive Filter Controls
     control_group = {
@@ -650,6 +736,7 @@ def build_dashboard(dv_id):
 
     dashboard_obj = {
         "attributes": {
+            "version": 3,
             "title": "Security Dashboard",
             "description": "SOC Security Log Monitoring Dashboard for Linux SSH and Windows RDP authentication events",
             "timeRestore": True,
@@ -662,6 +749,12 @@ def build_dashboard(dv_id):
                 "syncTooltips": True,
                 "hidePanelTitles": False
             }),
+            "kibanaSavedObjectMeta": {
+                "searchSourceJSON": json.dumps({
+                    "query": {"query": "", "language": "kuery"},
+                    "filter": []
+                })
+            },
             "controlGroupInput": control_group,
             "panelsJSON": json.dumps(panels)
         },
