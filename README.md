@@ -184,32 +184,42 @@ sudo bash setup_filebeat.sh 192.168.1.10 YourLabPassword123
 
 ---
 
-### Step 3️⃣ — Windows Client (VM3) / إعداد عميل ويندوز
+### Step 3️⃣ — Windows Host Client (Physical Machine) / إعداد عميل ويندوز (الجهاز المضيف)
+
+> [!WARNING]
+> **Physical Host Security Notice / تنبيه أمني للجهاز المضيف:**
+> - The Windows machine is the **physical host running the hypervisor / VMs** (not a virtual machine).
+> - For host security, `enable_rdp.ps1` creates a dedicated, **unprivileged local test account (`testrdp`)** that is restricted strictly to the **Remote Desktop Users** group (it is **NEVER** granted Administrator rights).
+> - **Firewall Scoping**: Always pass `-KaliIP <KALI_IP>` so Windows Firewall port 3389 is opened **strictly for the Kali VM's IP address** rather than the entire local network.
+> - **Post-Demo Teardown**: Once your demo or presentation is finished, run `.\disable_rdp.ps1` as Administrator to immediately disable RDP, close port 3389, and delete the `testrdp` account.
+>
+> **ملاحظة أمنية هامة**: جهاز ويندوز هو **الجهاز الفيزيائي المضيف** الذي يشغل البيئة الافتراضية. لأمان جهازك، يقوم سكربت `enable_rdp.ps1` بإنشاء حساب تجريبي مقيد (`testrdp`) ضمن مجموعة مستخدمي سطح المكتب البعيد فقط (دون أي صلاحيات مسؤول). يجب دائماً حصر جدار الحماية بعنوان IP الخاص بمهاجم Kali فقط عبر الخيار `-KaliIP`، وتشغيل سكربت `disable_rdp.ps1` فور انتهاء العرض لإغلاق المنفذ وحذف الحساب التجريبي.
 
 Open **PowerShell as Administrator**:
 افتح **PowerShell كمسؤول**:
 
 ```powershell
-# Enable Remote Desktop and create the 'testuser' account used by the
-# Kali attack script / تفعيل سطح المكتب البعيد وإنشاء حساب 'testuser'
 Set-ExecutionPolicy Bypass -Scope Process -Force
-.\enable_rdp.ps1 -TestPassword YourLabPassword123
 
-# Install and start Winlogbeat / تثبيت وتشغيل Winlogbeat
+# 1. Enable RDP, create restricted 'testrdp' account, and scope firewall to Kali IP
+# تفعيل RDP وإنشاء حساب testrdp المقيد وحصر جدار الحماية بـ Kali IP
+.\enable_rdp.ps1 -TestPassword 'YourLabPassword123' -KaliIP '192.168.1.13'
+
+# 2. Install and start Winlogbeat (ships Event IDs 4624 & 4625 to Logstash)
+# تثبيت وتشغيل Winlogbeat لإرسال سجلات تسجيل الدخول إلى Logstash
 .\setup_winlogbeat.ps1 -ElkIP 192.168.1.10
+
+# -------------------------------------------------------------------------
+# Post-Demo Teardown / تنظيف النظام بعد انتهاء العرض:
+# Run this script when finished to disable RDP, close port 3389, and delete 'testrdp':
+# .\disable_rdp.ps1
+# -------------------------------------------------------------------------
 ```
 
 > [!NOTE]
-> `enable_rdp.ps1` creates a local **`testuser`** account (and adds it to the
-> *Remote Desktop Users* group) with the password you pass via `-TestPassword`
-> (default `ChangeMe_LabOnly` if omitted). Use the **same password** in Step 4
-> so the Hydra RDP brute-force ends in a successful login, just like the SSH
-> phase.
+> `enable_rdp.ps1` creates the local **`testrdp`** account with the password you pass via `-TestPassword` (default `ChangeMe_LabOnly` if omitted). Use the **same password** in Step 4 so the Hydra RDP brute-force ends in a successful login, demonstrating account breach detection.
 >
-> ينشئ `enable_rdp.ps1` حساباً محلياً باسم **`testuser`** (ويضيفه إلى مجموعة
-> *Remote Desktop Users*) بكلمة المرور التي تمررها عبر `-TestPassword`. استخدم
-> **نفس كلمة المرور** في الخطوة 4 حتى ينتهي هجوم RDP بتسجيل دخول ناجح، تماماً
-> مثل مرحلة SSH.
+> ينشئ `enable_rdp.ps1` حساباً محلياً مقيداً باسم **`testrdp`** بكلمة المرور المحددة عبر `-TestPassword`. استخدم نفس كلمة المرور في الخطوة 4 ليختتم هجوم التخمين بتسجيل دخول ناجح.
 
 ---
 
