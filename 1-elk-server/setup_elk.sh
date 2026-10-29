@@ -19,7 +19,7 @@ echo "============================================="
 echo " ELK Stack - Server Setup (Lab Mode)"
 echo "============================================="
 
-# ---- 0. Prompt for Username and Password ----
+# ---- 0. Prompt for Username and Password (No Defaults) ----
 INPUT_USER="${1:-}"
 INPUT_PASS="${2:-}"
 
@@ -27,11 +27,17 @@ INPUT_PASS="${2:-}"
 if [ -n "$INPUT_USER" ]; then
     ADMIN_USER="$INPUT_USER"
 elif [ -t 0 ]; then
-    echo -n "[?] Enter Admin Username [default: elastic]: "
-    read -r ADMIN_USER
-    ADMIN_USER="${ADMIN_USER:-elastic}"
+    while true; do
+        echo -n "[?] Enter Admin Username: "
+        read -r ADMIN_USER
+        if [ -n "$ADMIN_USER" ]; then
+            break
+        fi
+        echo "[-] Username cannot be empty. Please enter a valid username."
+    done
 else
-    ADMIN_USER="${ELASTIC_USER:-elastic}"
+    echo "[-] Error: Non-interactive execution requires arguments: sudo bash setup_elk.sh <ADMIN_USER> <ADMIN_PASSWORD>" >&2
+    exit 1
 fi
 
 # Handle Admin Password
@@ -39,14 +45,12 @@ if [ -n "$INPUT_PASS" ]; then
     ADMIN_PASSWORD="$INPUT_PASS"
 elif [ -t 0 ]; then
     while true; do
-        echo -n "[?] Enter Admin Password (hidden) [default: Admin123!@#]: "
+        echo -n "[?] Enter Admin Password (hidden): "
         read -r -s ADMIN_PASSWORD
         echo ""
-        ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin123!@#}"
-
-        # If user selected default, no need for confirmation
-        if [ "$ADMIN_PASSWORD" = "Admin123!@#" ]; then
-            break
+        if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "[-] Password cannot be empty. Please enter a password."
+            continue
         fi
 
         echo -n "[?] Confirm Admin Password (hidden): "
@@ -60,7 +64,8 @@ elif [ -t 0 ]; then
         fi
     done
 else
-    ADMIN_PASSWORD="${ELASTIC_PASSWORD:-Admin123!@#}"
+    echo "[-] Error: Non-interactive execution requires arguments: sudo bash setup_elk.sh <ADMIN_USER> <ADMIN_PASSWORD>" >&2
+    exit 1
 fi
 
 echo "[+] Using administrator username: '${ADMIN_USER}'"

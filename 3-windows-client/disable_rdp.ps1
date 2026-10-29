@@ -12,10 +12,14 @@
 
 #Requires -RunAsAdministrator
 param(
-    [string]$TestUser = "testrdp"
+    [string]$TestUser = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($TestUser)) {
+    $TestUser = Read-Host "[?] Enter the Windows Test Username to remove"
+}
 
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host " Physical Host: RDP Post-Demo Cleanup       " -ForegroundColor Cyan

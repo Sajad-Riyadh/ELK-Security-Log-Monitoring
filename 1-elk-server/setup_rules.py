@@ -14,6 +14,7 @@ Evaluation Schedule: Every 10 seconds (for rapid lab & SOC demonstration).
 import sys
 import json
 import base64
+import getpass
 import urllib.request
 import urllib.error
 
@@ -25,9 +26,23 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 def main():
-    kibana_host = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5601"
-    admin_user = sys.argv[2] if len(sys.argv) > 2 else "elastic"
-    admin_pass = sys.argv[3] if len(sys.argv) > 3 else "Admin123!@#"
+    if len(sys.argv) > 3:
+        kibana_host = sys.argv[1]
+        admin_user = sys.argv[2]
+        admin_pass = sys.argv[3]
+    elif sys.stdin.isatty():
+        kibana_host = sys.argv[1] if len(sys.argv) > 1 else input("Enter Kibana URL [http://localhost:5601]: ").strip()
+        if not kibana_host:
+            kibana_host = "http://localhost:5601"
+        admin_user = sys.argv[2] if len(sys.argv) > 2 else ""
+        while not admin_user:
+            admin_user = input("Enter Admin Username: ").strip()
+        admin_pass = ""
+        while not admin_pass:
+            admin_pass = getpass.getpass("Enter Admin Password: ")
+    else:
+        print("[-] Error: Usage: python3 setup_rules.py <kibana_url> <admin_username> <admin_password>", file=sys.stderr)
+        sys.exit(1)
 
     auth_header = "Basic " + base64.b64encode(f"{admin_user}:{admin_pass}".encode()).decode()
     headers = {

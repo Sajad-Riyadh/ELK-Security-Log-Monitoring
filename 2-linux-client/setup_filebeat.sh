@@ -5,14 +5,14 @@
 # configures it to ship auth.log and syslog to the ELK server via Logstash.
 #
 # Usage:
-#   sudo bash setup_filebeat.sh <ELK_IP> [TEST_PASSWORD]
+#   sudo bash setup_filebeat.sh <ELK_IP> [TEST_USER] [TEST_PASSWORD]
 #
 # Examples:
-#   # Interactive prompt (safest when passwords contain special chars like !):
+#   # Interactive prompt (prompts for custom username and password, no defaults):
 #   sudo bash setup_filebeat.sh 192.168.1.10
 #
-#   # Direct argument (always wrap passwords containing ! in single quotes):
-#   sudo bash setup_filebeat.sh 192.168.1.10 'YourLabPassword123'
+#   # Direct arguments:
+#   sudo bash setup_filebeat.sh 192.168.1.10 'myuser' 'MySecurePassword123!'
 #
 # WARNING: This script is for an ISOLATED LAB environment ONLY.
 # =============================================================================
@@ -24,24 +24,58 @@ if [ "${EUID:-$(id -u)}" -ne 0 ]; then
 fi
 
 ELK_IP="${1:?Error: Please provide the ELK server IP as the first argument. (Example: sudo bash setup_filebeat.sh 192.168.1.10)}"
-INPUT_PASSWORD="${2:-}"
+INPUT_USER="${2:-}"
+INPUT_PASSWORD="${3:-}"
 
-# Safely handle password input without bash history expansion issues
+# Handle Test Username (No default)
+if [ -n "$INPUT_USER" ]; then
+    TEST_USER="$INPUT_USER"
+elif [ -t 0 ]; then
+    while true; do
+        echo -n "[?] Enter Linux Test Username: "
+        read -r TEST_USER
+        if [ -n "$TEST_USER" ]; then
+            break
+        fi
+        echo "[-] Username cannot be empty. Please enter a valid username."
+    done
+else
+    echo "[-] Error: Non-interactive execution requires arguments: sudo bash setup_filebeat.sh <ELK_IP> <TEST_USER> <TEST_PASSWORD>" >&2
+    exit 1
+fi
+
+# Handle Test Password (No default)
 if [ -n "$INPUT_PASSWORD" ]; then
     TEST_PASSWORD="$INPUT_PASSWORD"
 elif [ -t 0 ]; then
-    echo -n "[?] Enter password for 'testuser' (hidden) [default: ChangeMe_LabOnly]: "
-    read -r -s TEST_PASSWORD
-    echo ""
-    TEST_PASSWORD="${TEST_PASSWORD:-ChangeMe_LabOnly}"
+    while true; do
+        echo -n "[?] Enter password for user '${TEST_USER}' (hidden): "
+        read -r -s TEST_PASSWORD
+        echo ""
+        if [ -z "$TEST_PASSWORD" ]; then
+            echo "[-] Password cannot be empty. Please enter a password."
+            continue
+        fi
+
+        echo -n "[?] Confirm password for user '${TEST_USER}' (hidden): "
+        read -r -s CONFIRM_PASSWORD
+        echo ""
+
+        if [ "$TEST_PASSWORD" = "$CONFIRM_PASSWORD" ]; then
+            break
+        else
+            echo "[!] Passwords do not match. Please try again."
+        fi
+    done
 else
-    TEST_PASSWORD="ChangeMe_LabOnly"
+    echo "[-] Error: Non-interactive execution requires arguments: sudo bash setup_filebeat.sh <ELK_IP> <TEST_USER> <TEST_PASSWORD>" >&2
+    exit 1
 fi
 
 echo "============================================="
 echo " Linux Client - Filebeat Setup"
 echo " ELK Server : ${ELK_IP}"
-echo " User       : testuser"
+echo " User       : ${TEST_USER}"
 echo "============================================="
 
 # ---- 1. Install and configure OpenSSH Server & rsyslog ----
@@ -70,14 +104,14 @@ systemctl restart ssh.socket 2>/dev/null || true
 echo "[+] SSH server configured."
 
 # ---- 2. Create test user ----
-if id "testuser" &>/dev/null; then
-    echo "[+] User 'testuser' already exists. Updating password..."
-    chpasswd <<< "testuser:${TEST_PASSWORD}"
+if id "${TEST_USER}" &>/dev/null; then
+    echo "[+] User '${TEST_USER}' already exists. Updating password..."
+    chpasswd <<< "${TEST_USER}:${TEST_PASSWORD}"
 else
-    echo "[*] Creating user 'testuser'..."
-    useradd -m -s /bin/bash testuser
-    chpasswd <<< "testuser:${TEST_PASSWORD}"
-    echo "[+] User 'testuser' created."
+    echo "[*] Creating user '${TEST_USER}'..."
+    useradd -m -s /bin/bash "${TEST_USER}"
+    chpasswd <<< "${TEST_USER}:${TEST_PASSWORD}"
+    echo "[+] User '${TEST_USER}' created."
 fi
 
 # ---- 3. Install Filebeat 8.x ----

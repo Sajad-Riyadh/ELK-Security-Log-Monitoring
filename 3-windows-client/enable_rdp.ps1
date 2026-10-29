@@ -9,14 +9,14 @@
 #       Windows Firewall rule strictly to the Kali VM IP address.
 #
 # Usage (PowerShell as Administrator):
-#   .\enable_rdp.ps1 [-TestPassword <password>] [-KaliIP <IP>] [-TestUser <username>]
+#   .\enable_rdp.ps1 [-TestUser <username>] [-TestPassword <password>] [-KaliIP <IP>]
 #
 # Examples:
-#   # Recommended: restrict firewall to Kali VM IP
-#   .\enable_rdp.ps1 -TestPassword "YourLabPassword123" -KaliIP "192.168.1.13"
+#   # Interactive prompt (prompts for custom username and password, no defaults):
+#   .\enable_rdp.ps1 -KaliIP "192.168.1.13"
 #
-#   # Default (all subnet IPs):
-#   .\enable_rdp.ps1 -TestPassword "YourLabPassword123"
+#   # Direct arguments:
+#   .\enable_rdp.ps1 -TestUser "myrdpuser" -TestPassword "YourPassword123!" -KaliIP "192.168.1.13"
 #
 # Teardown / Cleanup:
 #   When your demo is finished, run .\disable_rdp.ps1 to disable RDP,
@@ -25,12 +25,43 @@
 
 #Requires -RunAsAdministrator
 param(
-    [string]$TestUser = "testrdp",
-    [string]$TestPassword = "ChangeMe_LabOnly",
+    [string]$TestUser = "",
+    [string]$TestPassword = "",
     [string]$KaliIP = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+# Handle Test Username (No default)
+while ([string]::IsNullOrWhiteSpace($TestUser)) {
+    $TestUser = Read-Host "[?] Enter Windows Test Username for RDP"
+    if ([string]::IsNullOrWhiteSpace($TestUser)) {
+        Write-Host "[-] Username cannot be empty. Please enter a valid username." -ForegroundColor Red
+    }
+}
+
+# Handle Test Password (No default)
+while ([string]::IsNullOrWhiteSpace($TestPassword)) {
+    $TestPasswordSec = Read-Host "[?] Enter Password for '$TestUser'" -AsSecureString
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($TestPasswordSec)
+    $TestPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+
+    if ([string]::IsNullOrWhiteSpace($TestPassword)) {
+        Write-Host "[-] Password cannot be empty. Please enter a password." -ForegroundColor Red
+        continue
+    }
+
+    $ConfirmSec = Read-Host "[?] Confirm Password for '$TestUser'" -AsSecureString
+    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ConfirmSec)
+    $Confirm = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($BSTR)
+
+    if ($TestPassword -ne $Confirm) {
+        Write-Host "[!] Passwords do not match. Please try again." -ForegroundColor Yellow
+        $TestPassword = ""
+    }
+}
 
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host " Physical Host: Enable RDP (Security Lab)   " -ForegroundColor Cyan

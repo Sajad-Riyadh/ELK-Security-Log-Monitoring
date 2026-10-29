@@ -11,7 +11,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-Admin123!@#}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:?Error: ELASTIC_PASSWORD must be configured in .env via setup_elk.sh}
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     volumes:
       - es-data:/usr/share/elasticsearch/data
@@ -21,7 +21,7 @@ services:
       - elk-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u elastic:${ELASTIC_PASSWORD:-Admin123!@#} http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -u elastic:$${ELASTIC_PASSWORD} http://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -33,7 +33,7 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-${ELASTIC_PASSWORD:-Admin123!@#}}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-${ELASTIC_PASSWORD}}
       - XPACK_SECURITY_ENCRYPTIONKEY=${XPACK_SECURITY_ENCRYPTIONKEY:-lab_only_sec_key_32_chars_minimum_1}
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY:-lab_only_eso_key_32_chars_minimum_2}
       - XPACK_REPORTING_ENCRYPTIONKEY=${XPACK_REPORTING_ENCRYPTIONKEY:-lab_only_rep_key_32_chars_minimum_3}
@@ -50,7 +50,7 @@ services:
     image: docker.elastic.co/logstash/logstash:8.17.0
     container_name: logstash
     environment:
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-Admin123!@#}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:
