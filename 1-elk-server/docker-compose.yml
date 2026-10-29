@@ -11,7 +11,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
-      - ELASTIC_PASSWORD=Admin123!@#
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-Admin123!@#}
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     volumes:
       - es-data:/usr/share/elasticsearch/data
@@ -21,7 +21,7 @@ services:
       - elk-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf -u elastic:Admin123!@# http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -u elastic:${ELASTIC_PASSWORD:-Admin123!@#} http://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -33,7 +33,7 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=Admin123!@#
+      - ELASTICSEARCH_PASSWORD=${KIBANA_PASSWORD:-${ELASTIC_PASSWORD:-Admin123!@#}}
       - XPACK_SECURITY_ENCRYPTIONKEY=4cf51532f8973ad92a6414777d4c8901
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=4cf51532f8973ad92a6414777d4c8901
       - XPACK_REPORTING_ENCRYPTIONKEY=4cf51532f8973ad92a6414777d4c8901
@@ -49,6 +49,8 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:8.17.0
     container_name: logstash
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-Admin123!@#}
     volumes:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:

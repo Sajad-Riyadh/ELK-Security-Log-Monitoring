@@ -140,8 +140,12 @@ ELK-Security-Log-Monitoring/
 git clone https://github.com/Sajad-Riyadh/ELK-Security-Log-Monitoring.git
 cd ELK-Security-Log-Monitoring/1-elk-server
 
-# Run the setup script (as root) / تشغيل سكربت الإعداد
+# Run the interactive setup script / تشغيل سكربت الإعداد التفاعلي
 sudo bash setup_elk.sh
+
+# Or provide custom credentials directly / أو حدد بياناتك مباشرة:
+# sudo bash setup_elk.sh [USERNAME] [PASSWORD]
+# Example: sudo bash setup_elk.sh admin MyCustomPassword123!
 ```
 
 Wait for all containers to become healthy (~1-2 minutes):

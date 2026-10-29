@@ -9,6 +9,10 @@ Thumbs.db
 # Docker volumes (do not commit data)
 es-data/
 
+# Environment files
+.env
+*.env
+
 # Logs
 *.log
 
