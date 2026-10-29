@@ -3,10 +3,11 @@
 setup_rules.py - Automatic Data View & Observability Alert Rules Provisioner for Kibana 8.x
 
 1. Ensures the 'security-logs-*' Data View exists in Kibana (creates it if missing).
-2. Configures the 3 core security alert rules inside Kibana Observability:
+2. Configures the 4 core security alert rules inside Kibana Observability:
    - 🚨 SSH Brute Force Detection (Threshold > 3 failed logins in 5m)
    - 🚨 Windows RDP Brute Force Detection (Threshold > 3 failed RDP logins in 5m)
    - 🟢 Successful Login After Attack (Threshold > 0 accepted logins in 5m)
+   - 🤖 AI Critical Threat Detected (Threshold > 0 critical/high AI alerts in 15m)
 
 Evaluation Schedule: Every 10 seconds (for rapid lab & SOC demonstration).
 """
@@ -61,7 +62,7 @@ def main():
     found_dv = False
     try:
         req = urllib.request.Request(f"{kibana_host}/api/data_views", headers=headers)
-        res = urllib.request.urlopen(req)
+        res = urllib.request.urlopen(req, timeout=10)
         dvs = json.loads(res.read()).get("data_view", [])
         for dv in dvs:
             if "security-logs" in dv.get("title", ""):
@@ -90,7 +91,7 @@ def main():
                 headers=headers,
                 method="POST",
             )
-            create_res = urllib.request.urlopen(create_req)
+            create_res = urllib.request.urlopen(create_req, timeout=10)
             created_dv = json.loads(create_res.read()).get("data_view", {})
             dv_id = created_dv.get("id", dv_id)
             print(f"[+] Created Data View 'security-logs-*' (ID: {dv_id})")
@@ -124,6 +125,13 @@ def main():
             "threshold": 0,
             "window": 5,
         },
+        {
+            "name": "🤖 AI Critical Threat Detected",
+            "tags": ["security", "ai", "soc"],
+            "query": 'event_type : "ai_security_analysis" and (ai.severity : "CRITICAL" or ai.severity : "HIGH")',
+            "threshold": 0,
+            "window": 15,
+        },
     ]
 
     # Find existing rules to update or avoid duplicates
@@ -132,7 +140,7 @@ def main():
         find_req = urllib.request.Request(
             f"{kibana_host}/api/alerting/rules/_find?per_page=100", headers=headers
         )
-        find_res = urllib.request.urlopen(find_req)
+        find_res = urllib.request.urlopen(find_req, timeout=10)
         for r in json.loads(find_res.read()).get("data", []):
             existing_rules[r.get("name")] = r.get("id")
     except Exception as e:
@@ -196,7 +204,7 @@ def main():
             )
 
         try:
-            res = urllib.request.urlopen(req)
+            res = urllib.request.urlopen(req, timeout=10)
             print(f"[+] Successfully saved {r_def['name']} (HTTP {res.status})")
         except urllib.error.HTTPError as e:
             print(f"[-] HTTP error {e.code}: {e.read().decode()}", file=sys.stderr)
