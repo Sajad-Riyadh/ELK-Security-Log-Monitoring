@@ -15,6 +15,8 @@ param(
     [string]$ElkIP
 )
 
+$ErrorActionPreference = "Stop"
+
 $WinlogbeatVersion = "8.17.0"
 $InstallDir = "C:\Program Files\Winlogbeat"
 $ConfigFile = "$InstallDir\winlogbeat.yml"
@@ -76,12 +78,15 @@ Write-Host "[+] Configuration written to ${ConfigFile}." -ForegroundColor Green
 # ---- 3. Install and start the Winlogbeat service ----
 Write-Host "[*] Installing Winlogbeat service..."
 Push-Location $InstallDir
-PowerShell.exe -ExecutionPolicy Bypass -File .\install-service-winlogbeat.ps1
-Pop-Location
+try {
+    PowerShell.exe -ExecutionPolicy Bypass -File .\install-service-winlogbeat.ps1
+} finally {
+    Pop-Location
+}
 
 Write-Host "[*] Starting Winlogbeat service..."
-Start-Service -Name winlogbeat
 Set-Service  -Name winlogbeat -StartupType Automatic
+Restart-Service -Name winlogbeat -Force
 Write-Host "[+] Winlogbeat service is running." -ForegroundColor Green
 
 Write-Host ""

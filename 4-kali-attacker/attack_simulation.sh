@@ -5,19 +5,24 @@
 # generate security events for the ELK monitoring dashboard.
 #
 # Usage:
-#   bash attack_simulation.sh <LINUX_TARGET_IP> <WINDOWS_TARGET_IP> [TARGET_PASSWORD] [RDP_USER]
+#   sudo bash attack_simulation.sh <LINUX_TARGET_IP> <WINDOWS_TARGET_IP> [TARGET_PASSWORD] [RDP_USER]
 #
 # Examples:
 #   # Interactive prompt (safest when passwords contain special chars like !):
-#   bash attack_simulation.sh 192.168.1.11 192.168.1.12
+#   sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12
 #
 #   # Direct argument (always wrap passwords containing ! in single quotes):
-#   bash attack_simulation.sh 192.168.1.11 192.168.1.12 'Admin123!@#'
+#   sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12 'YourLabPassword123'
 #
 # WARNING: This script is for an ISOLATED LAB environment ONLY.
 #          Unauthorized use against systems you do not own is illegal.
 # =============================================================================
 set -euo pipefail
+
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+    echo "[-] Error: This script must be run as root for Nmap SYN scans (-sS) (use: sudo bash attack_simulation.sh ...)." >&2
+    exit 1
+fi
 
 LINUX_TARGET="${1:?Error: Provide the Linux target IP as the first argument.}"
 WINDOWS_TARGET="${2:?Error: Provide the Windows target IP as the second argument.}"
@@ -64,7 +69,7 @@ for target in "$LINUX_TARGET" "$WINDOWS_TARGET"; do
     if ping -c 3 -W 2 "$target" &>/dev/null; then
         echo "[+] ${target} is reachable."
     else
-        echo "[-] ${target} is NOT reachable. Check network."
+        echo "[!] Warning: ${target} did not respond to ICMP ping (may be blocked by firewall; continuing)."
     fi
 done
 
@@ -122,7 +127,8 @@ echo ""
 echo "[*] Phase 5: RDP Credential Testing (Hydra)"
 echo "-------------------------------------------"
 echo "[*] Target: ${WINDOWS_TARGET} | User: ${RDP_USER}"
-hydra -l "${RDP_USER}" -P "$WORDLIST" rdp://"${WINDOWS_TARGET}" -t 4 -V -f || true
+# Use -t 1 (sequential) for reliable NLA/FreeRDP session handling
+hydra -l "${RDP_USER}" -P "$WORDLIST" rdp://"${WINDOWS_TARGET}" -t 1 -V -f || true
 
 # ---- 6. Cleanup ----
 # (handled automatically by the EXIT trap above)

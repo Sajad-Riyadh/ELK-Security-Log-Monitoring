@@ -4,9 +4,10 @@
 #
 # Actions:
 #   1. Disables Remote Desktop in the Windows registry (fDenyTSConnections = 1)
-#   2. Closes and disables Windows Firewall rules for Remote Desktop (port 3389)
-#   3. Resets RemoteAddress restrictions on the firewall rule
-#   4. Deletes the temporary 'testrdp' local test account
+#   2. Stops Remote Desktop Services (TermService) and resets startup to Manual
+#   3. Closes and disables Windows Firewall rules for Remote Desktop (port 3389)
+#   4. Resets RemoteAddress restrictions on the firewall rule
+#   5. Deletes the temporary 'testrdp' local test account
 # =============================================================================
 
 #Requires -RunAsAdministrator
@@ -14,15 +15,22 @@ param(
     [string]$TestUser = "testrdp"
 )
 
+$ErrorActionPreference = "Stop"
+
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host " Physical Host: RDP Post-Demo Cleanup       " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
-# ---- 1. Disable RDP in Registry ----
+# ---- 1. Disable RDP in Registry & Stop TermService ----
 Write-Host "[*] Disabling Remote Desktop in registry (fDenyTSConnections = 1)..."
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" `
     -Name "fDenyTSConnections" -Value 1 -Type DWord
 Write-Host "[+] Remote Desktop disabled in registry." -ForegroundColor Green
+
+Write-Host "[*] Stopping Remote Desktop Services (TermService)..."
+Stop-Service -Name "TermService" -Force -ErrorAction SilentlyContinue
+Set-Service -Name "TermService" -StartupType Manual -ErrorAction SilentlyContinue
+Write-Host "[+] TermService stopped and reverted to Manual." -ForegroundColor Green
 
 # ---- 2. Disable & Reset Windows Firewall Rule ----
 Write-Host "[*] Disabling Remote Desktop firewall rules..."

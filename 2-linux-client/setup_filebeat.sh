@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # Linux Client Setup Script
-# Installs OpenSSH, creates a test user, installs Filebeat 8.x, and configures
-# it to ship auth.log and syslog to the ELK server via Logstash.
+# Installs OpenSSH & rsyslog, creates a test user, installs Filebeat 8.x, and
+# configures it to ship auth.log and syslog to the ELK server via Logstash.
 #
 # Usage:
 #   sudo bash setup_filebeat.sh <ELK_IP> [TEST_PASSWORD]
@@ -12,11 +12,16 @@
 #   sudo bash setup_filebeat.sh 192.168.1.10
 #
 #   # Direct argument (always wrap passwords containing ! in single quotes):
-#   sudo bash setup_filebeat.sh 192.168.1.10 'Admin123!@#'
+#   sudo bash setup_filebeat.sh 192.168.1.10 'YourLabPassword123'
 #
 # WARNING: This script is for an ISOLATED LAB environment ONLY.
 # =============================================================================
 set -euo pipefail
+
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+    echo "[-] Error: This script must be run as root (use: sudo bash setup_filebeat.sh <ELK_IP>)." >&2
+    exit 1
+fi
 
 ELK_IP="${1:?Error: Please provide the ELK server IP as the first argument. (Example: sudo bash setup_filebeat.sh 192.168.1.10)}"
 INPUT_PASSWORD="${2:-}"
@@ -39,10 +44,12 @@ echo " ELK Server : ${ELK_IP}"
 echo " User       : testuser"
 echo "============================================="
 
-# ---- 1. Install and configure OpenSSH Server ----
-echo "[*] Installing openssh-server..."
+# ---- 1. Install and configure OpenSSH Server & rsyslog ----
+echo "[*] Installing openssh-server and rsyslog..."
 apt-get update -y
-apt-get install -y openssh-server
+apt-get install -y openssh-server rsyslog wget gpg
+
+systemctl enable --now rsyslog
 
 echo "[*] Enabling PasswordAuthentication in ssh configuration..."
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config 2>/dev/null || true
@@ -65,11 +72,11 @@ echo "[+] SSH server configured."
 # ---- 2. Create test user ----
 if id "testuser" &>/dev/null; then
     echo "[+] User 'testuser' already exists. Updating password..."
-    echo "testuser:${TEST_PASSWORD}" | chpasswd
+    chpasswd <<< "testuser:${TEST_PASSWORD}"
 else
     echo "[*] Creating user 'testuser'..."
     useradd -m -s /bin/bash testuser
-    echo "testuser:${TEST_PASSWORD}" | chpasswd
+    chpasswd <<< "testuser:${TEST_PASSWORD}"
     echo "[+] User 'testuser' created."
 fi
 
@@ -117,6 +124,7 @@ logging.files:
   keepfiles: 3
 FBEOF
 
+chown root:root /etc/filebeat/filebeat.yml
 chmod 600 /etc/filebeat/filebeat.yml
 echo "[+] Filebeat configuration written (permissions: 600)."
 

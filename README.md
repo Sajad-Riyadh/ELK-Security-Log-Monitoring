@@ -9,9 +9,9 @@
 > [!CAUTION]
 > **⚠️ Lab-Only Configuration / تحذير: بيئة مختبر فقط**
 >
-> This project uses `xpack.security.enabled=false` and default credentials for simplicity in an **isolated lab environment**. **Never** deploy this configuration on a production or internet-facing system. Always enable authentication, TLS/SSL, and proper access controls in real-world deployments.
+> This project is designed strictly for an **isolated lab network**. While basic authentication (`xpack.security.enabled=true`) is enabled, HTTP TLS/SSL is disabled (`xpack.security.http.ssl.enabled=false` — equivalent in transport risk to `xpack.security.enabled=false`) and default lab credentials (`Admin123!@#` / `ChangeMe_LabOnly`) are included for classroom simplicity. **Never** deploy this configuration or weak lab credentials on a production or internet-facing system. Always enable full TLS/SSL encryption, strong unique secrets, and strict network access controls in real-world deployments.
 >
-> هذا المشروع يستخدم `xpack.security.enabled=false` وبيانات اعتماد افتراضية لتبسيط الإعداد في **بيئة مختبر معزولة**. **لا تقم أبداً** بنشر هذا الإعداد على أنظمة إنتاجية أو متصلة بالإنترنت. يجب دائماً تفعيل المصادقة وتشفير TLS/SSL وضوابط الوصول المناسبة في البيئات الحقيقية.
+> تم تصميم هذا المشروع حصرياً للعمل في **بيئة مختبر معزولة**. على الرغم من تفعيل المصادقة الأساسية (`xpack.security.enabled=true`)، إلا أن تشفير HTTP TLS/SSL معطل (`xpack.security.http.ssl.enabled=false`) ويتم استخدام كلمات مرور افتراضية للتجربة المخبرية فقط. **لا تقم أبداً** بنشر هذا الإعداد أو كلمات المرور التجريبية على أنظمة إنتاجية أو متصلة بالإنترنت. يجب دائماً تفعيل تشفير TLS/SSL الكامل وضوابط الوصول الصارمة في البيئات الحقيقية.
 
 ---
 
@@ -96,19 +96,21 @@ ELK-Security-Log-Monitoring/
 ├── 1-elk-server/
 │   ├── docker-compose.yml     # ELK stack containers (ES, Logstash, Kibana)
 │   ├── logstash.conf          # Logstash pipeline: Beats input → Grok → ES
-│   └── setup_elk.sh           # Automated setup: Docker + sysctl + compose up
+│   ├── setup_elk.sh           # Automated setup: Docker + sysctl + compose up
+│   └── setup_rules.py         # Auto-creates Data View & 3 Kibana Alert Rules
 │
 ├── 2-linux-client/
-│   └── setup_filebeat.sh      # Install SSH, create testuser, deploy Filebeat
+│   └── setup_filebeat.sh      # Install SSH/rsyslog, create testuser, deploy Filebeat
 │
 ├── 3-windows-client/
-│   ├── enable_rdp.ps1         # Enable RDP + firewall rule (scoped) + create 'testrdp'
+│   ├── enable_rdp.ps1         # Enable RDP + start TermService + scoped firewall + create 'testrdp'
 │   ├── disable_rdp.ps1        # Post-demo teardown: disable RDP + close port + delete account
 │   └── setup_winlogbeat.ps1   # Deploy Winlogbeat for Windows Event Logs
 │
 ├── 4-kali-attacker/
 │   └── attack_simulation.sh   # Nmap scan + Hydra brute-force (SSH & RDP)
 │
+├── LICENSE                    # MIT License
 └── README.md                  # This documentation
 ```
 
@@ -148,21 +150,21 @@ sudo bash setup_elk.sh
 
 # Or provide custom credentials directly / أو حدد بياناتك مباشرة:
 # sudo bash setup_elk.sh [USERNAME] [PASSWORD]
-# Example: sudo bash setup_elk.sh admin MyCustomPassword123!
+# Example: sudo bash setup_elk.sh admin 'MyCustomPassword123!'
 ```
 
 Wait for all containers to become healthy (~1-2 minutes):
 انتظر حتى تصبح جميع الحاويات جاهزة (~1-2 دقيقة):
 
 ```bash
-sudo docker ps    # All containers should show "healthy"
+sudo docker ps    # Elasticsearch should show "(healthy)"
 ```
 
 Verify Elasticsearch is running:
 تحقق من تشغيل Elasticsearch:
 
 ```bash
-curl -u elastic:Admin123!@# http://localhost:9200
+curl -u elastic:'Admin123!@#' http://localhost:9200
 ```
 
 Access Kibana at: `http://<ELK_SERVER_IP>:5601`
@@ -174,15 +176,15 @@ Access Kibana at: `http://<ELK_SERVER_IP>:5601`
 ```bash
 cd ELK-Security-Log-Monitoring/2-linux-client
 
-# Replace <ELK_IP> with your ELK server IP and optionally set a password
-# استبدل <ELK_IP> بعنوان خادم ELK واختيارياً حدد كلمة مرور
-sudo bash setup_filebeat.sh 192.168.1.10 YourLabPassword123
+# Replace <ELK_IP> with your ELK server IP and optionally set a password for 'testuser'
+# استبدل <ELK_IP> بعنوان خادم ELK واختيارياً حدد كلمة مرور للمستخدم testuser
+sudo bash setup_filebeat.sh 192.168.1.10 'YourLabPassword123'
 ```
 
 > [!NOTE]
-> If you omit the password argument, it defaults to `ChangeMe_LabOnly`. This is acceptable for an isolated lab.
+> If you omit the password argument, it defaults to `ChangeMe_LabOnly`. Use the exact same password across Step 2, Step 3, and Step 4.
 >
-> إذا لم تحدد كلمة المرور، ستكون القيمة الافتراضية `ChangeMe_LabOnly`. هذا مقبول في بيئة مختبر معزولة.
+> إذا لم تحدد كلمة المرور، ستكون القيمة الافتراضية `ChangeMe_LabOnly`. استخدم نفس كلمة المرور في الخطوات 2 و3 و4.
 
 ---
 
@@ -191,11 +193,11 @@ sudo bash setup_filebeat.sh 192.168.1.10 YourLabPassword123
 > [!WARNING]
 > **Physical Host Security Notice / تنبيه أمني للجهاز المضيف:**
 > - The Windows machine is the **physical host running the hypervisor / VMs** (not a virtual machine).
-> - For host security, `enable_rdp.ps1` creates a dedicated, **unprivileged local test account (`testrdp`)** that is restricted strictly to the **Remote Desktop Users** group (it is **NEVER** granted Administrator rights).
+> - For host security, `enable_rdp.ps1` creates a dedicated, **unprivileged local test account (`testrdp`)** restricted strictly to the **Remote Desktop Users** group (never granted Administrator rights) and ensures the `TermService` daemon is running.
 > - **Firewall Scoping**: Always pass `-KaliIP <KALI_IP>` so Windows Firewall port 3389 is opened **strictly for the Kali VM's IP address** rather than the entire local network.
-> - **Post-Demo Teardown**: Once your demo or presentation is finished, run `.\disable_rdp.ps1` as Administrator to immediately disable RDP, close port 3389, and delete the `testrdp` account.
+> - **Post-Demo Teardown**: Once your demo is finished, run `.\disable_rdp.ps1` as Administrator to immediately disable RDP in the registry, close port 3389, and delete the `testrdp` account.
 >
-> **ملاحظة أمنية هامة**: جهاز ويندوز هو **الجهاز الفيزيائي المضيف** الذي يشغل البيئة الافتراضية. لأمان جهازك، يقوم سكربت `enable_rdp.ps1` بإنشاء حساب تجريبي مقيد (`testrdp`) ضمن مجموعة مستخدمي سطح المكتب البعيد فقط (دون أي صلاحيات مسؤول). يجب دائماً حصر جدار الحماية بعنوان IP الخاص بمهاجم Kali فقط عبر الخيار `-KaliIP`، وتشغيل سكربت `disable_rdp.ps1` فور انتهاء العرض لإغلاق المنفذ وحذف الحساب التجريبي.
+> **ملاحظة أمنية هامة**: جهاز ويندوز هو **الجهاز الفيزيائي المضيف** الذي يشغل البيئة الافتراضية. لأمان جهازك، يقوم سكربت `enable_rdp.ps1` بإنشاء حساب تجريبي مقيد (`testrdp`) ضمن مجموعة مستخدمي سطح المكتب البعيد فقط وتشغيل خدمة `TermService`. يجب دائماً حصر جدار الحماية بعنوان IP الخاص بمهاجم Kali فقط عبر الخيار `-KaliIP`، وتشغيل سكربت `disable_rdp.ps1` فور انتهاء العرض لإغلاق المنفذ وحذف الحساب التجريبي.
 
 Open **PowerShell as Administrator**:
 افتح **PowerShell كمسؤول**:
@@ -203,8 +205,8 @@ Open **PowerShell as Administrator**:
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
-# 1. Enable RDP, create restricted 'testrdp' account, and scope firewall to Kali IP
-# تفعيل RDP وإنشاء حساب testrdp المقيد وحصر جدار الحماية بـ Kali IP
+# 1. Enable RDP, ensure TermService is running, create 'testrdp', and scope firewall to Kali IP
+# تفعيل RDP وتشغيل الخدمة وإنشاء حساب testrdp المقيد وحصر جدار الحماية بـ Kali IP
 .\enable_rdp.ps1 -TestPassword 'YourLabPassword123' -KaliIP '192.168.1.13'
 
 # 2. Install and start Winlogbeat (ships Event IDs 4624 & 4625 to Logstash)
@@ -218,11 +220,6 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 # -------------------------------------------------------------------------
 ```
 
-> [!NOTE]
-> `enable_rdp.ps1` creates the local **`testrdp`** account with the password you pass via `-TestPassword` (default `ChangeMe_LabOnly` if omitted). Use the **same password** in Step 4 so the Hydra RDP brute-force ends in a successful login, demonstrating account breach detection.
->
-> ينشئ `enable_rdp.ps1` حساباً محلياً مقيداً باسم **`testrdp`** بكلمة المرور المحددة عبر `-TestPassword`. استخدم نفس كلمة المرور في الخطوة 4 ليختتم هجوم التخمين بتسجيل دخول ناجح.
-
 ---
 
 ### Step 4️⃣ — Attack Simulation (Kali VM) / محاكاة الهجمات (كالي لينكس)
@@ -230,36 +227,30 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 ```bash
 cd ELK-Security-Log-Monitoring/4-kali-attacker
 
-# Run attack simulation (interactive or single-quoted password):
-# تشغيل محاكاة الهجمات (تفاعلي أو بكلمة مرور مقتبسة):
-sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12 'Admin123!@#'
+# Run attack simulation passing the SAME target password set in Steps 2 & 3:
+# تشغيل محاكاة الهجمات بتمرير نفس كلمة المرور المحددة في الخطوتين 2 و3:
+sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12 'YourLabPassword123'
 
-# Or run interactively without password:
+# Or run interactively (defaults to ChangeMe_LabOnly if Enter is pressed):
 # sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12
 ```
 
 The script will:
+- Verify root privileges and required tools (`nmap`, `hydra`) / التحقق من الصلاحيات والأدوات
 - Perform connectivity checks (ping) / فحص الاتصال
-- Run Nmap SYN scans on both targets / فحص المنافذ
-- Generate a wordlist with ~15 wrong passwords + the correct one at the end / توليد قائمة كلمات مرور
-- Run Hydra against SSH (Linux) and RDP (Windows) / تنفيذ هجمات القوة الغاشمة
-
-> [!NOTE]
-> The `TARGET_PASSWORD` you pass here must match the `-TestPassword` you used
-> in Step 3 for the Windows `testrdp` account (and the password used for
-> Linux `testuser` in Step 2) so both brute-force phases end in a successful
-> login. If your Hydra build has trouble with RDP + NLA, update Hydra/FreeRDP
-> to a recent version — current Hydra releases support NLA/CredSSP.
+- Run Nmap SYN scans (`-sS`) on both targets / فحص المنافذ
+- Generate a temporary wordlist (`/tmp/lab_wordlist.txt`) with 15 wrong passwords + the correct target password at the end (auto-deleted on exit) / توليد قائمة كلمات مرور تنتهي بكلمة المرور الصحيحة
+- Run Hydra against SSH (`testuser` on Linux) and RDP (`testrdp` on Windows) / تنفيذ هجمات القوة الغاشمة
 
 ---
 
 ### Step 5️⃣ — Kibana Dashboard & Alerts / لوحة المعلومات والتنبيهات
 
+`setup_elk.sh` automatically invokes `setup_rules.py` to create the **`security-logs-*` Data View** and the **3 Observability Alert Rules**.
+
 1. Open Kibana: `http://<ELK_SERVER_IP>:5601`
-2. Go to **Management → Stack Management → Data Views**
-3. Create a data view with pattern: `security-logs-*`
-4. Go to **Discover** to explore the logs
-5. Use the KQL filters below to detect security events
+2. Go to **Discover** and select the `security-logs-*` data view (or create it manually under **Management → Stack Management → Data Views** if needed)
+3. Go to **Observability → Alerts** (`http://<ELK_SERVER_IP>:5601/app/observability/alerts`) to monitor triggered alerts in real time
 
 ---
 
@@ -271,18 +262,18 @@ Use these **KQL (Kibana Query Language)** filters in the Discover tab or when cr
 
 ### Automated Alert Rules Provisioning / إعداد قواعد التنبيهات تلقائياً
 
-You can automatically provision the 3 core security rules into **Kibana Observability** using the included helper script:
+`setup_rules.py` is executed automatically at the end of `setup_elk.sh`, or can be run manually at any time:
 
 ```bash
 # Run from the ELK server:
 cd 1-elk-server
-python3 setup_rules.py http://localhost:5601 elastic 'YourPassword'
+python3 setup_rules.py http://localhost:5601 elastic 'Admin123!@#'
 ```
 
-Rules created:
-1. **🚨 SSH Brute Force Detection**: Triggers when failed passwords > 3 within 5 minutes.
-2. **🚨 Windows RDP Brute Force Detection**: Triggers when Windows Event 4625 > 3 within 5 minutes.
-3. **🟢 Successful Login After Attack**: Triggers when an accepted login occurs after attacks.
+Rules provisioned (evaluated every 10 seconds):
+1. **🚨 SSH Brute Force Detection**: `message : "Failed password" or event_type : "ssh_failed_login"` (Threshold `> 3` in `5m`)
+2. **🚨 Windows RDP Brute Force Detection**: `winlog.event_id : "4625" or event_type : "windows_failed_login"` (Threshold `> 3` in `5m`)
+3. **🟢 Successful Login After Attack**: `message : "Accepted password" or event_type : "ssh_successful_login" or winlog.event_id : "4624" or event_type : "windows_successful_login"` (Threshold `> 0` in `5m`)
 
 View active alerts in real-time at:
 👉 `http://<SERVER_IP>:5601/app/observability/alerts`
@@ -293,15 +284,15 @@ View active alerts in real-time at:
 
 | Event / الحدث | KQL Filter / استعلام KQL | Description / الوصف |
 |---|---|---|
-| 🔴 Failed SSH Login | `message : "Failed password"` | Detects failed SSH login attempts / كشف محاولات دخول SSH الفاشلة |
-| 🟢 Successful SSH Login | `message : "Accepted password"` | Detects successful SSH logins / كشف عمليات دخول SSH الناجحة |
+| 🔴 Failed SSH Login | `message : "Failed password" or event_type : "ssh_failed_login"` | Detects failed SSH login attempts / كشف محاولات دخول SSH الفاشلة |
+| 🟢 Successful SSH Login | `message : "Accepted password" or event_type : "ssh_successful_login"` | Detects successful SSH logins / كشف عمليات دخول SSH الناجحة |
 
 ### Windows RDP Events / أحداث RDP في ويندوز
 
 | Event / الحدث | KQL Filter / استعلام KQL | Description / الوصف |
 |---|---|---|
-| 🔴 Failed RDP Login | `winlog.event_id : "4625"` | Windows failed logon event / حدث فشل تسجيل الدخول في ويندوز |
-| 🟢 Successful RDP Login | `winlog.event_id : "4624"` | Windows successful logon event / حدث نجاح تسجيل الدخول في ويندوز |
+| 🔴 Failed RDP Login | `winlog.event_id : "4625" or event_type : "windows_failed_login"` | Windows failed logon event / حدث فشل تسجيل الدخول في ويندوز |
+| 🟢 Successful RDP Login | `winlog.event_id : "4624" or event_type : "windows_successful_login"` | Windows successful logon event / حدث نجاح تسجيل الدخول في ويندوز |
 
 ### Combined Threat Detection / كشف التهديدات المجمع
 
@@ -315,15 +306,6 @@ message : "Accepted password" or winlog.event_id : "4624"
 # All authentication events / جميع أحداث المصادقة
 event_type : "ssh_failed_login" or event_type : "ssh_successful_login" or event_type : "windows_failed_login" or event_type : "windows_successful_login"
 ```
-
-> [!TIP]
-> **Creating Alert Rules in Kibana / إنشاء قواعد التنبيه في Kibana:**
->
-> 1. Go to **Observability → Alerts → Create Rule** / انتقل إلى Observability → Alerts → Create Rule
-> 2. Select **Elasticsearch query** rule type / اختر نوع القاعدة Elasticsearch query
-> 3. Use the KQL filters above / استخدم استعلامات KQL أعلاه
-> 4. Set threshold (e.g., > 5 failed logins in 5 minutes) / حدد العتبة (مثلاً: أكثر من 5 محاولات فاشلة في 5 دقائق)
-> 5. Configure actions (e.g., log, email, webhook) / إعداد الإجراءات (سجل، بريد، webhook)
 
 ---
 

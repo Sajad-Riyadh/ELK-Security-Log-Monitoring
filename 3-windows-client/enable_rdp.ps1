@@ -4,22 +4,23 @@
 #
 # NOTE: The Windows machine is the PHYSICAL HOST running the hypervisor / VMs.
 #       For security, this script creates a dedicated, unprivileged test
-#       account ('testrdp') restricted to Remote Desktop only, and allows
-#       scoping the Windows Firewall rule to the Kali VM IP address.
+#       account ('testrdp') restricted to Remote Desktop only, starts the
+#       Remote Desktop Services (TermService) daemon, and allows scoping the
+#       Windows Firewall rule strictly to the Kali VM IP address.
 #
 # Usage (PowerShell as Administrator):
 #   .\enable_rdp.ps1 [-TestPassword <password>] [-KaliIP <IP>] [-TestUser <username>]
 #
 # Examples:
 #   # Recommended: restrict firewall to Kali VM IP
-#   .\enable_rdp.ps1 -TestPassword "YourLabPass123" -KaliIP "192.168.1.13"
+#   .\enable_rdp.ps1 -TestPassword "YourLabPassword123" -KaliIP "192.168.1.13"
 #
 #   # Default (all subnet IPs):
-#   .\enable_rdp.ps1 -TestPassword "YourLabPass123"
+#   .\enable_rdp.ps1 -TestPassword "YourLabPassword123"
 #
 # Teardown / Cleanup:
 #   When your demo is finished, run .\disable_rdp.ps1 to disable RDP,
-#   close the firewall rule, and delete the test account.
+#   stop TermService, close the firewall rule, and delete the test account.
 # =============================================================================
 
 #Requires -RunAsAdministrator
@@ -29,15 +30,22 @@ param(
     [string]$KaliIP = ""
 )
 
+$ErrorActionPreference = "Stop"
+
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host " Physical Host: Enable RDP (Security Lab)   " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
-# ---- 1. Enable RDP via Registry ----
+# ---- 1. Enable RDP via Registry & Start TermService ----
 Write-Host "[*] Setting fDenyTSConnections = 0 in registry..."
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" `
     -Name "fDenyTSConnections" -Value 0 -Type DWord
 Write-Host "[+] Remote Desktop enabled in registry." -ForegroundColor Green
+
+Write-Host "[*] Enabling and starting Remote Desktop Services (TermService)..."
+Set-Service -Name "TermService" -StartupType Automatic
+Start-Service -Name "TermService"
+Write-Host "[+] TermService is running and listening on port 3389." -ForegroundColor Green
 
 # ---- 2. Configure Firewall Rule (Scoped to Kali IP if provided) ----
 Write-Host "[*] Configuring Windows Firewall rule for RDP (port 3389)..."

@@ -20,6 +20,7 @@ es-data/
 *.tmp
 *.swp
 *.bak
+*.zip
 
 # IDE
 .vscode/
