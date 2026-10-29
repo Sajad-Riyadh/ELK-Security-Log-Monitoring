@@ -290,7 +290,7 @@ def build_dashboard(dv_id):
     })
     references.append({"type": "index-pattern", "id": dv_id, "name": f"{panel_time_id}:indexpattern-datasource-layer-{time_layer_id}"})
 
-    # 4. Donut Chart: Event Types Distribution (x=32, y=11, w=16, h=14)
+    # 4. Event Types Breakdown (x=32, y=11, w=16, h=14)
     pie_layer_id = str(uuid.uuid4())
     pie_col_group = str(uuid.uuid4())
     pie_col_metric = str(uuid.uuid4())
@@ -303,19 +303,21 @@ def build_dashboard(dv_id):
         "panelIndex": panel_pie_id,
         "embeddableConfig": {
             "attributes": {
-                "title": "🍩 Threat vs Legitimate Event Ratio",
-                "visualizationType": "lnsPie",
+                "title": "🎯 Threat vs Legitimate Event Breakdown",
+                "visualizationType": "lnsXY",
                 "type": "lens",
                 "references": [
                     {"type": "index-pattern", "id": dv_id, "name": f"indexpattern-datasource-layer-{pie_layer_id}"}
                 ],
                 "state": {
                     "visualization": {
-                        "shape": "donut",
+                        "legend": {"isVisible": False},
+                        "preferredSeriesType": "bar_horizontal",
                         "layers": [{
                             "layerId": pie_layer_id,
-                            "groups": [pie_col_group],
-                            "metric": pie_col_metric,
+                            "xAccessor": pie_col_group,
+                            "accessors": [pie_col_metric],
+                            "seriesType": "bar_horizontal",
                             "layerType": "data"
                         }]
                     },
@@ -327,7 +329,7 @@ def build_dashboard(dv_id):
                                 pie_layer_id: {
                                     "columns": {
                                         pie_col_group: {
-                                            "label": "Event Classification",
+                                            "label": "Event Type",
                                             "dataType": "string",
                                             "operationType": "terms",
                                             "scale": "ordinal",
@@ -337,7 +339,7 @@ def build_dashboard(dv_id):
                                                 "size": 5,
                                                 "orderBy": {"type": "column", "columnId": pie_col_metric},
                                                 "orderDirection": "desc",
-                                                "otherBucket": True,
+                                                "otherBucket": False,
                                                 "missingBucket": False
                                             }
                                         },
@@ -524,18 +526,20 @@ def build_dashboard(dv_id):
         "embeddableConfig": {
             "attributes": {
                 "title": "📡 Beats Shipper Agent Breakdown",
-                "visualizationType": "lnsPie",
+                "visualizationType": "lnsXY",
                 "type": "lens",
                 "references": [
                     {"type": "index-pattern", "id": dv_id, "name": f"indexpattern-datasource-layer-{ag_layer_id}"}
                 ],
                 "state": {
                     "visualization": {
-                        "shape": "donut",
+                        "legend": {"isVisible": False},
+                        "preferredSeriesType": "bar_horizontal",
                         "layers": [{
                             "layerId": ag_layer_id,
-                            "groups": [ag_col_group],
-                            "metric": ag_col_metric,
+                            "xAccessor": ag_col_group,
+                            "accessors": [ag_col_metric],
+                            "seriesType": "bar_horizontal",
                             "layerType": "data"
                         }]
                     },
