@@ -32,11 +32,11 @@
 
 **English:**
 
-This project implements a centralized security log monitoring system for a small network using the **ELK Stack** (Elasticsearch, Logstash, Kibana). The system collects authentication and security logs from Linux and Windows clients, processes them through Logstash, stores them in Elasticsearch, and provides a Kibana dashboard for real-time monitoring and alerting. An attack simulation from a Kali Linux VM validates the detection capabilities.
+This project implements a centralized security log monitoring system for a small network using the **ELK Stack** (Elasticsearch, Logstash, Kibana). The system collects authentication and security logs from Linux and Windows clients, processes them through Logstash, stores them in Elasticsearch, and provides a Kibana dashboard for real-time monitoring and alerting. Security validation is conducted manually from a testing machine (e.g., Kali Linux) using standard CLI tools to trigger and verify detection rules.
 
 **العربية:**
 
-يقوم هذا المشروع بتنفيذ نظام مركزي لمراقبة السجلات الأمنية لشبكة صغيرة باستخدام **حزمة ELK** (Elasticsearch, Logstash, Kibana). يجمع النظام سجلات المصادقة والأمان من عملاء Linux وWindows، ويعالجها عبر Logstash، ويخزنها في Elasticsearch، ويوفر لوحة معلومات Kibana للمراقبة والتنبيه في الوقت الفعلي. تتحقق محاكاة الهجمات من جهاز Kali Linux من قدرات الكشف.
+يقوم هذا المشروع بتنفيذ نظام مركزي لمراقبة السجلات الأمنية لشبكة صغيرة باستخدام **حزمة ELK** (Elasticsearch, Logstash, Kibana). يجمع النظام سجلات المصادقة والأمان من عملاء Linux وWindows، ويعالجها عبر Logstash، ويخزنها في Elasticsearch، ويوفر لوحة معلومات Kibana للمراقبة والتنبيه في الوقت الفعلي. يتم التحقق الأمني يدوياً من جهاز اختبار (مثل Kali Linux) عبر أوامر سطر الأوامر القياسية للتحقق من فاعلية قواعد الكشف والتنبيه.
 
 ---
 
@@ -106,9 +106,6 @@ ELK-Security-Log-Monitoring/
 │   ├── enable_rdp.ps1         # Enable RDP + start TermService + scoped firewall + create 'testrdp'
 │   ├── disable_rdp.ps1        # Post-demo teardown: disable RDP + close port + delete account
 │   └── setup_winlogbeat.ps1   # Deploy Winlogbeat for Windows Event Logs
-│
-├── 4-kali-attacker/
-│   └── attack_simulation.sh   # Nmap scan + Hydra brute-force (SSH & RDP)
 │
 ├── LICENSE                    # MIT License
 └── README.md                  # This documentation
@@ -222,25 +219,47 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 
 ---
 
-### Step 4️⃣ — Attack Simulation (Kali VM) / محاكاة الهجمات (كالي لينكس)
+### Step 4️⃣ — Manual Security Testing & SIEM Validation / التحقق الأمني واختبار المنظومة يدوياً
+
+> [!NOTE]
+> **Defensive Scope / الطابع الدفاعي للمستودع:**
+> This repository is strictly a **defensive security monitoring solution (Blue Team / SIEM)**. In alignment with professional security engineering standards, no offensive attack scripts are stored within the project. Security and alert validation is conducted manually from your testing machine (e.g. Kali Linux) using standard security tools.
+>
+> هذا المشروع مخصص بالكامل **للرصد والحماية الأمنية (Blue Team / SIEM)**. والتزاماً بالمعايير المهنية، لا يحتوي المستودع على أي سكربتات هجومية مخزنة. يتم إجراء اختبارات التحقق من التنبيهات يدوياً من جهاز الاختبار (مثل Kali Linux) باستخدام الأدوات الأمنية القياسية مباشرة.
+
+From your **Kali Linux terminal** (or authorized testing machine):
+
+#### 1. Linux SSH Brute-Force Testing / اختبار هجوم القوة الغاشمة على SSH
+Send 5 failed attempts sequentially (`-t 1` ensures OpenSSH records every single attempt without connection throttling) to trigger the **SSH Brute Force Detection** alert (`> 3` failed attempts in 5 minutes):
 
 ```bash
-cd ELK-Security-Log-Monitoring/4-kali-attacker
-
-# Run attack simulation passing the SAME target password set in Steps 2 & 3:
-# تشغيل محاكاة الهجمات بتمرير نفس كلمة المرور المحددة في الخطوتين 2 و3:
-sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12 'YourLabPassword123'
-
-# Or run interactively (defaults to ChangeMe_LabOnly if Enter is pressed):
-# sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12
+# Sequential SSH brute-force test with Hydra
+# اختبار القوة الغاشمة لـ SSH باستخدام Hydra بشكل متسلسل
+hydra -l testuser -P <(printf "wrong1\nwrong2\nwrong3\nwrong4\nwrong5\n") ssh://192.168.1.20 -t 1
 ```
 
-The script will:
-- Verify root privileges and required tools (`nmap`, `hydra`) / التحقق من الصلاحيات والأدوات
-- Perform connectivity checks (ping) / فحص الاتصال
-- Run Nmap SYN scans (`-sS`) on both targets / فحص المنافذ
-- Generate a temporary wordlist (`/tmp/lab_wordlist.txt`) with 15 wrong passwords + the correct target password at the end (auto-deleted on exit) / توليد قائمة كلمات مرور تنتهي بكلمة المرور الصحيحة
-- Run Hydra against SSH (`testuser` on Linux) and RDP (`testrdp` on Windows) / تنفيذ هجمات القوة الغاشمة
+To test the **Successful Login After Attack** alert (`count > 0`):
+```bash
+# Login with the correct password set in Step 2
+ssh testuser@192.168.1.20
+```
+
+---
+
+#### 2. Windows RDP Brute-Force Testing / اختبار هجوم القوة الغاشمة على RDP
+Send failed attempts against the host's scoped RDP port to trigger the **Windows RDP Brute Force Detection** alert (`> 3` failed attempts in 5 minutes):
+
+```bash
+# Sequential RDP brute-force test with Hydra
+# اختبار القوة الغاشمة لـ RDP باستخدام Hydra بشكل متسلسل
+hydra -l testrdp -P <(printf "wrong1\nwrong2\nwrong3\nwrong4\nwrong5\n") rdp://192.168.1.12 -t 1
+```
+
+To test successful logon detection:
+```bash
+# Connect using FreeRDP with the credentials set in Step 3
+xfreerdp /v:192.168.1.12 /u:testrdp /p:'YourLabPassword123'
+```
 
 ---
 
