@@ -102,7 +102,7 @@ ELK-Security-Log-Monitoring/
 │   └── setup_filebeat.sh      # Install SSH, create testuser, deploy Filebeat
 │
 ├── 3-windows-client/
-│   ├── enable_rdp.ps1         # Enable Remote Desktop + firewall rule
+│   ├── enable_rdp.ps1         # Enable RDP + firewall rule + create 'testuser'
 │   └── setup_winlogbeat.ps1   # Deploy Winlogbeat for Windows Event Logs
 │
 ├── 4-kali-attacker/
@@ -120,6 +120,7 @@ ELK-Security-Log-Monitoring/
 | Hypervisor | VirtualBox, VMware, or Hyper-V |
 | VM1 RAM | Minimum **4 GB** (recommended 8 GB for ELK) |
 | VM2/VM3/VM4 RAM | Minimum **2 GB** each |
+| Windows Edition | **Pro, Enterprise, or Education** — Windows 11 **Home** cannot host incoming RDP connections |
 | Network Mode | Internal Network or Host-Only (all VMs on the same subnet) |
 | Internet Access | Required during initial setup for downloading packages |
 
@@ -136,7 +137,7 @@ ELK-Security-Log-Monitoring/
 
 ```bash
 # Clone the repository / استنساخ المستودع
-git clone https://github.com/<YOUR_USERNAME>/ELK-Security-Log-Monitoring.git
+git clone https://github.com/Sajad-Riyadh/ELK-Security-Log-Monitoring.git
 cd ELK-Security-Log-Monitoring/1-elk-server
 
 # Run the setup script (as root) / تشغيل سكربت الإعداد
@@ -184,13 +185,26 @@ Open **PowerShell as Administrator**:
 افتح **PowerShell كمسؤول**:
 
 ```powershell
-# Enable Remote Desktop / تفعيل سطح المكتب البعيد
+# Enable Remote Desktop and create the 'testuser' account used by the
+# Kali attack script / تفعيل سطح المكتب البعيد وإنشاء حساب 'testuser'
 Set-ExecutionPolicy Bypass -Scope Process -Force
-.\enable_rdp.ps1
+.\enable_rdp.ps1 -TestPassword YourLabPassword123
 
 # Install and start Winlogbeat / تثبيت وتشغيل Winlogbeat
 .\setup_winlogbeat.ps1 -ElkIP 192.168.1.10
 ```
+
+> [!NOTE]
+> `enable_rdp.ps1` creates a local **`testuser`** account (and adds it to the
+> *Remote Desktop Users* group) with the password you pass via `-TestPassword`
+> (default `ChangeMe_LabOnly` if omitted). Use the **same password** in Step 4
+> so the Hydra RDP brute-force ends in a successful login, just like the SSH
+> phase.
+>
+> ينشئ `enable_rdp.ps1` حساباً محلياً باسم **`testuser`** (ويضيفه إلى مجموعة
+> *Remote Desktop Users*) بكلمة المرور التي تمررها عبر `-TestPassword`. استخدم
+> **نفس كلمة المرور** في الخطوة 4 حتى ينتهي هجوم RDP بتسجيل دخول ناجح، تماماً
+> مثل مرحلة SSH.
 
 ---
 
@@ -209,6 +223,13 @@ The script will:
 - Run Nmap SYN scans on both targets / فحص المنافذ
 - Generate a wordlist with ~15 wrong passwords + the correct one at the end / توليد قائمة كلمات مرور
 - Run Hydra against SSH (Linux) and RDP (Windows) / تنفيذ هجمات القوة الغاشمة
+
+> [!NOTE]
+> The `TARGET_PASSWORD` you pass here must match the `-TestPassword` you used
+> in Step 3 for the Windows `testuser` account (and the password used for
+> Linux `testuser` in Step 2) so both brute-force phases end in a successful
+> login. If your Hydra build has trouble with RDP + NLA, update Hydra/FreeRDP
+> to a recent version — current Hydra releases support NLA/CredSSP.
 
 ---
 

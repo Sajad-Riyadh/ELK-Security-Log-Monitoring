@@ -24,6 +24,10 @@ TARGET_PASSWORD="${3:-ChangeMe_LabOnly}"
 
 WORDLIST="/tmp/lab_wordlist.txt"
 
+# Always remove the wordlist (it ends with a real plaintext password) even if
+# the script exits early or is interrupted.
+trap 'rm -f "$WORDLIST"' EXIT
+
 echo "============================================="
 echo " Attack Simulation - Lab Environment"
 echo " Linux Target  : ${LINUX_TARGET}"
@@ -85,6 +89,7 @@ PASSWORDS
 
 # Append the CORRECT password at the end so brute force ends with a success
 echo "${TARGET_PASSWORD}" >> "$WORDLIST"
+chmod 600 "$WORDLIST"
 
 TOTAL=$(wc -l < "$WORDLIST")
 echo "[+] Wordlist created at ${WORDLIST} (${TOTAL} entries)."
@@ -105,7 +110,7 @@ echo "[*] Target: ${WINDOWS_TARGET} | User: testuser"
 hydra -l testuser -P "$WORDLIST" rdp://"${WINDOWS_TARGET}" -t 4 -V -f || true
 
 # ---- 6. Cleanup ----
-rm -f "$WORDLIST"
+# (handled automatically by the EXIT trap above)
 
 echo ""
 echo "============================================="
