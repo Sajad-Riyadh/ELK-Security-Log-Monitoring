@@ -97,7 +97,8 @@ ELK-Security-Log-Monitoring/
 │   ├── docker-compose.yml     # ELK stack containers (ES, Logstash, Kibana)
 │   ├── logstash.conf          # Logstash pipeline: Beats input → Grok → ES
 │   ├── setup_elk.sh           # Automated setup: Docker + sysctl + compose up
-│   └── setup_rules.py         # Auto-creates Data View & 3 Kibana Alert Rules
+│   ├── setup_rules.py         # Auto-creates Data View & 3 Kibana Alert Rules
+│   └── setup_dashboard.py     # Auto-deploys Professional 11-panel SOC Dashboard
 │
 ├── 2-linux-client/
 │   └── setup_filebeat.sh      # Install SSH/rsyslog, create custom test user, deploy Filebeat
@@ -274,13 +275,33 @@ xfreerdp /v:192.168.1.12 /u:<WINDOWS_USER> /p:'<YOUR_PASSWORD>'
 
 ---
 
-### Step 5️⃣ — Kibana Dashboard & Alerts / لوحة المعلومات والتنبيهات
+### Step 5️⃣ — Professional SOC Dashboard & Alerts / لوحة المعلومات والتنبيهات المتقدمة
 
-`setup_elk.sh` automatically invokes `setup_rules.py` to create the **`security-logs-*` Data View** and the **3 Observability Alert Rules**.
+`setup_elk.sh` automatically invokes `setup_rules.py` and `setup_dashboard.py` to configure:
+1. The **`security-logs-*` Data View** and index patterns.
+2. The **3 Observability Alert Rules** (evaluated every 10 seconds).
+3. The **Professional 11-Panel SOC Security Operations Center Dashboard**.
 
-1. Open Kibana: `http://<ELK_SERVER_IP>:5601`
-2. Go to **Discover** and select the `security-logs-*` data view (or create it manually under **Management → Stack Management → Data Views** if needed)
-3. Go to **Observability → Alerts** (`http://<ELK_SERVER_IP>:5601/app/observability/alerts`) to monitor triggered alerts in real time
+#### 🖥️ Accessing the Security Dashboard / الوصول إلى لوحة المراقبة:
+- **Direct Dashboard Link:** `http://<ELK_SERVER_IP>:5601/app/dashboards#/view/c71e1675-d0b2-47d2-bb7f-a35d9b065005`
+- **Real-Time Observability Alerts:** `http://<ELK_SERVER_IP>:5601/app/observability/alerts`
+- **Discover Raw Logs Stream:** `http://<ELK_SERVER_IP>:5601/app/discover`
+
+#### 📊 Dashboard Features & Visualizations / عناصر لوحة المراقبة:
+| Panel / العنصر | Type / النوع | Description / الوصف |
+|---|---|---|
+| **Executive Header** | Markdown | Real-time SIEM status indicators, monitored scopes, and quick navigation links |
+| **🚨 Failed Logins Card** | Metric KPI | Total count of failed SSH & RDP attempts (Brute-force indicator) |
+| **🟢 Successful Logins Card** | Metric KPI | Total count of legitimate accepted logins across Linux and Windows |
+| **📊 Total Security Events** | Metric KPI | Total volume of ingested security logs in `security-logs-*` |
+| **💻 Active Target Hosts** | Metric KPI | Number of active endpoints shipping security telemetry |
+| **📈 Authentication Events Timeline** | Lens XY (Bar Stacked) | Time-series breakdown showing login spikes, brute-force attacks, and baseline trends |
+| **🍩 Event Types Ratio** | Lens Donut | Threat vs legitimate authentication distribution percentage |
+| **💻 Events by Target Host** | Lens XY (Horizontal Bar) | Log volume distribution per monitored endpoint (Ubuntu vs Windows) |
+| **🎯 Security Events by Category** | Lens XY (Bar) | Volume breakdown by classified event type (`ssh_failed_login`, `windows_failed_login`, etc.) |
+| **📡 Beats Shipper Distribution** | Lens Donut | Ratio of logs shipped via Filebeat vs Winlogbeat |
+| **📋 Live Security Log Stream** | Saved Search Table | Real-time log table with expandable events, timestamps, hostnames, and messages |
+| **Interactive Filter Bar** | Controls Group | Multi-select filters by Event Type, Target Host, and Time Slider |
 
 ---
 

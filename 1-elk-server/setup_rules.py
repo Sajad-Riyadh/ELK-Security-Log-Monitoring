@@ -208,6 +208,17 @@ def main():
     print("\n[+] All Observability Alert Rules are active and evaluating every 10 seconds.")
     print(f"👉 Check Observability Alerts at: {kibana_host}/app/observability/alerts")
 
+    # Automatically provision / update the professional SOC Dashboard
+    try:
+        import os
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        if script_dir not in sys.path:
+            sys.path.insert(0, script_dir)
+        import setup_dashboard
+        setup_dashboard.deploy_dashboard(kibana_host, admin_user, admin_pass)
+    except Exception as e:
+        print(f"[-] Note: Dashboard can also be deployed via setup_dashboard.py: {e}")
+
 
 if __name__ == "__main__":
     main()

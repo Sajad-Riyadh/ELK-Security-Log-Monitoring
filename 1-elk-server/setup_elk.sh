@@ -165,9 +165,9 @@ fi
 echo "[*] Starting Kibana and Logstash..."
 docker compose up -d kibana logstash
 
-# ---- 8. Provision Observability Alert Rules (if python3 is available) ----
+# ---- 8. Provision Observability Alert Rules & Dashboard (if python3 is available) ----
 if command -v python3 &>/dev/null && [ -f "${SCRIPT_DIR}/setup_rules.py" ]; then
-    echo "[*] Waiting for Kibana to become ready to provision alert rules..."
+    echo "[*] Waiting for Kibana to become ready to provision alert rules and dashboard..."
     for i in {1..40}; do
         if curl -sf -u "${ADMIN_USER}:${ADMIN_PASSWORD}" http://localhost:5601/api/status &>/dev/null; then
             echo "[*] Provisioning Data View and Observability Alert Rules..."
@@ -175,6 +175,13 @@ if command -v python3 &>/dev/null && [ -f "${SCRIPT_DIR}/setup_rules.py" ]; then
             python3 "${SCRIPT_DIR}/setup_rules.py" "http://localhost:5601" "${ADMIN_USER}" "${ADMIN_PASSWORD}" || {
                 echo "[!] Note: Alert rules can also be provisioned manually anytime via: python3 setup_rules.py"
             }
+
+            if [ -f "${SCRIPT_DIR}/setup_dashboard.py" ]; then
+                echo "[*] Provisioning Professional SOC Security Dashboard..."
+                python3 "${SCRIPT_DIR}/setup_dashboard.py" "http://localhost:5601" "${ADMIN_USER}" "${ADMIN_PASSWORD}" || {
+                    echo "[!] Note: Dashboard can also be provisioned manually anytime via: python3 setup_dashboard.py"
+                }
+            fi
             break
         fi
         sleep 3
@@ -185,10 +192,10 @@ echo ""
 echo "============================================="
 echo " ELK Stack is UP and RUNNING with AUTHENTICATION!"
 echo "---------------------------------------------"
-echo " Kibana Dashboard : http://<SERVER_IP>:5601"
-echo " Observability    : http://<SERVER_IP>:5601/app/observability/alerts"
-echo " Elasticsearch    : http://<SERVER_IP>:9200"
-echo " Logstash Beats   : port 5044"
+echo " Security Dashboard : http://<SERVER_IP>:5601/app/dashboards#/view/c71e1675-d0b2-47d2-bb7f-a35d9b065005"
+echo " Observability      : http://<SERVER_IP>:5601/app/observability/alerts"
+echo " Elasticsearch      : http://<SERVER_IP>:9200"
+echo " Logstash Beats     : port 5044"
 echo "---------------------------------------------"
 echo " Login Credentials:"
 echo "   Username : ${ADMIN_USER}"
