@@ -102,7 +102,8 @@ ELK-Security-Log-Monitoring/
 │   └── setup_filebeat.sh      # Install SSH, create testuser, deploy Filebeat
 │
 ├── 3-windows-client/
-│   ├── enable_rdp.ps1         # Enable RDP + firewall rule + create 'testuser'
+│   ├── enable_rdp.ps1         # Enable RDP + firewall rule (scoped) + create 'testrdp'
+│   ├── disable_rdp.ps1        # Post-demo teardown: disable RDP + close port + delete account
 │   └── setup_winlogbeat.ps1   # Deploy Winlogbeat for Windows Event Logs
 │
 ├── 4-kali-attacker/

@@ -5,13 +5,14 @@
 # generate security events for the ELK monitoring dashboard.
 #
 # Usage:
-#   bash attack_simulation.sh <LINUX_TARGET_IP> <WINDOWS_TARGET_IP> [TARGET_PASSWORD]
+#   bash attack_simulation.sh <LINUX_TARGET_IP> <WINDOWS_TARGET_IP> [TARGET_PASSWORD] [RDP_USER]
 #
 # Arguments:
-#   LINUX_TARGET_IP   - IP of the Linux client VM (required)
-#   WINDOWS_TARGET_IP - IP of the Windows client VM (required)
-#   TARGET_PASSWORD   - The correct password for testuser
+#   LINUX_TARGET_IP   - IP of the Linux client VM (SSH target, user: testuser)
+#   WINDOWS_TARGET_IP - IP of the Windows host machine (RDP target, user: testrdp)
+#   TARGET_PASSWORD   - The correct password for test accounts
 #                       (default: "ChangeMe_LabOnly")
+#   RDP_USER          - The Windows RDP test account name (default: "testrdp")
 #
 # WARNING: This script is for an ISOLATED LAB environment ONLY.
 #          Unauthorized use against systems you do not own is illegal.
@@ -21,6 +22,7 @@ set -euo pipefail
 LINUX_TARGET="${1:?Error: Provide the Linux target IP as the first argument.}"
 WINDOWS_TARGET="${2:?Error: Provide the Windows target IP as the second argument.}"
 TARGET_PASSWORD="${3:-ChangeMe_LabOnly}"
+RDP_USER="${4:-testrdp}"
 
 WORDLIST="/tmp/lab_wordlist.txt"
 
@@ -30,8 +32,8 @@ trap 'rm -f "$WORDLIST"' EXIT
 
 echo "============================================="
 echo " Attack Simulation - Lab Environment"
-echo " Linux Target  : ${LINUX_TARGET}"
-echo " Windows Target: ${WINDOWS_TARGET}"
+echo " Linux Target (SSH) : ${LINUX_TARGET} (user: testuser)"
+echo " Windows Target (RDP): ${WINDOWS_TARGET} (user: ${RDP_USER})"
 echo "============================================="
 
 # ---- 0. Check required tools ----
@@ -62,7 +64,7 @@ echo "[*] Scanning Linux target (${LINUX_TARGET})..."
 nmap -sS -Pn -T4 --top-ports 100 "$LINUX_TARGET" || true
 
 echo ""
-echo "[*] Scanning Windows target (${WINDOWS_TARGET})..."
+echo "[*] Scanning Windows host target (${WINDOWS_TARGET})..."
 nmap -sS -Pn -T4 --top-ports 100 "$WINDOWS_TARGET" || true
 
 # ---- 3. Generate password wordlist ----
@@ -106,8 +108,8 @@ hydra -l testuser -P "$WORDLIST" ssh://"${LINUX_TARGET}" -t 4 -V -f || true
 echo ""
 echo "[*] Phase 5: RDP Credential Testing (Hydra)"
 echo "-------------------------------------------"
-echo "[*] Target: ${WINDOWS_TARGET} | User: testuser"
-hydra -l testuser -P "$WORDLIST" rdp://"${WINDOWS_TARGET}" -t 4 -V -f || true
+echo "[*] Target: ${WINDOWS_TARGET} | User: ${RDP_USER}"
+hydra -l "${RDP_USER}" -P "$WORDLIST" rdp://"${WINDOWS_TARGET}" -t 4 -V -f || true
 
 # ---- 6. Cleanup ----
 # (handled automatically by the EXIT trap above)
