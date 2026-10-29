@@ -218,9 +218,12 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 ```bash
 cd ELK-Security-Log-Monitoring/4-kali-attacker
 
-# Run attack simulation / تشغيل محاكاة الهجمات
-# Arguments: <LINUX_IP> <WINDOWS_IP> [PASSWORD]
-sudo bash attack_simulation.sh 192.168.1.11 192.168.1.12 YourLabPassword123
+# Run attack simulation (interactive or single-quoted password):
+# تشغيل محاكاة الهجمات (تفاعلي أو بكلمة مرور مقتبسة):
+sudo bash attack_simulation.sh 192.168.1.11 192.168.1.12 'Admin123!@#'
+
+# Or run interactively without password:
+# sudo bash attack_simulation.sh 192.168.1.11 192.168.1.12
 ```
 
 The script will:

@@ -7,12 +7,12 @@
 # Usage:
 #   bash attack_simulation.sh <LINUX_TARGET_IP> <WINDOWS_TARGET_IP> [TARGET_PASSWORD] [RDP_USER]
 #
-# Arguments:
-#   LINUX_TARGET_IP   - IP of the Linux client VM (SSH target, user: testuser)
-#   WINDOWS_TARGET_IP - IP of the Windows host machine (RDP target, user: testrdp)
-#   TARGET_PASSWORD   - The correct password for test accounts
-#                       (default: "ChangeMe_LabOnly")
-#   RDP_USER          - The Windows RDP test account name (default: "testrdp")
+# Examples:
+#   # Interactive prompt (safest when passwords contain special chars like !):
+#   bash attack_simulation.sh 192.168.1.11 192.168.1.12
+#
+#   # Direct argument (always wrap passwords containing ! in single quotes):
+#   bash attack_simulation.sh 192.168.1.11 192.168.1.12 'Admin123!@#'
 #
 # WARNING: This script is for an ISOLATED LAB environment ONLY.
 #          Unauthorized use against systems you do not own is illegal.
@@ -21,8 +21,20 @@ set -euo pipefail
 
 LINUX_TARGET="${1:?Error: Provide the Linux target IP as the first argument.}"
 WINDOWS_TARGET="${2:?Error: Provide the Windows target IP as the second argument.}"
-TARGET_PASSWORD="${3:-ChangeMe_LabOnly}"
+INPUT_PASSWORD="${3:-}"
 RDP_USER="${4:-testrdp}"
+
+# Safely handle password input without bash history expansion issues
+if [ -n "$INPUT_PASSWORD" ]; then
+    TARGET_PASSWORD="$INPUT_PASSWORD"
+elif [ -t 0 ]; then
+    echo -n "[?] Enter correct password for lab brute-force demo (hidden) [default: ChangeMe_LabOnly]: "
+    read -r -s TARGET_PASSWORD
+    echo ""
+    TARGET_PASSWORD="${TARGET_PASSWORD:-ChangeMe_LabOnly}"
+else
+    TARGET_PASSWORD="ChangeMe_LabOnly"
+fi
 
 WORDLIST="/tmp/lab_wordlist.txt"
 

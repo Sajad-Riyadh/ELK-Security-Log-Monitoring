@@ -7,21 +7,36 @@
 # Usage:
 #   sudo bash setup_filebeat.sh <ELK_IP> [TEST_PASSWORD]
 #
-# Arguments:
-#   ELK_IP          - IP address of the ELK server (required)
-#   TEST_PASSWORD   - Password for the testuser account
-#                     (default: "ChangeMe_LabOnly")
+# Examples:
+#   # Interactive prompt (safest when passwords contain special chars like !):
+#   sudo bash setup_filebeat.sh 192.168.1.10
+#
+#   # Direct argument (always wrap passwords containing ! in single quotes):
+#   sudo bash setup_filebeat.sh 192.168.1.10 'Admin123!@#'
 #
 # WARNING: This script is for an ISOLATED LAB environment ONLY.
 # =============================================================================
 set -euo pipefail
 
-ELK_IP="${1:?Error: Please provide the ELK server IP as the first argument.}"
-TEST_PASSWORD="${2:-ChangeMe_LabOnly}"
+ELK_IP="${1:?Error: Please provide the ELK server IP as the first argument. (Example: sudo bash setup_filebeat.sh 192.168.1.10)}"
+INPUT_PASSWORD="${2:-}"
+
+# Safely handle password input without bash history expansion issues
+if [ -n "$INPUT_PASSWORD" ]; then
+    TEST_PASSWORD="$INPUT_PASSWORD"
+elif [ -t 0 ]; then
+    echo -n "[?] Enter password for 'testuser' (hidden) [default: ChangeMe_LabOnly]: "
+    read -r -s TEST_PASSWORD
+    echo ""
+    TEST_PASSWORD="${TEST_PASSWORD:-ChangeMe_LabOnly}"
+else
+    TEST_PASSWORD="ChangeMe_LabOnly"
+fi
 
 echo "============================================="
 echo " Linux Client - Filebeat Setup"
 echo " ELK Server : ${ELK_IP}"
+echo " User       : testuser"
 echo "============================================="
 
 # ---- 1. Install and configure OpenSSH Server ----
@@ -49,7 +64,7 @@ fi
 if ! command -v filebeat &>/dev/null; then
     echo "[*] Installing Filebeat 8.x..."
     wget -qO - https://artifacts.elastic.co/GPG-KEY-elasticsearch | \
-        gpg --dearmor -o /usr/share/keyrings/elastic-keyring.gpg
+        gpg --dearmor --yes -o /usr/share/keyrings/elastic-keyring.gpg
     echo "deb [signed-by=/usr/share/keyrings/elastic-keyring.gpg] \
 https://artifacts.elastic.co/packages/8.x/apt stable main" | \
         tee /etc/apt/sources.list.d/elastic-8.x.list > /dev/null
