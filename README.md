@@ -42,18 +42,18 @@ This project implements a centralized security log monitoring system for a small
 
 ## 🌐 Network Topology / طوبولوجيا الشبكة
 
-The lab environment consists of **4 Virtual Machines** on an isolated internal network:
+The lab environment consists of **1 Physical Host (Windows)** running the hypervisor and **3 Virtual Machines** on a shared lab network:
 
-تتكون بيئة المختبر من **4 أجهزة افتراضية** على شبكة داخلية معزولة:
+تتكون بيئة المختبر من **جهاز مضيف فيزيائي واحد (ويندوز)** يشغل البيئة الافتراضية، و **3 أجهزة افتراضية** على شبكة المختبر المشتركة:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Isolated Lab Network                         │
-│                   الشبكة المعزولة للمختبر                        │
+│                    Shared Lab Network                           │
+│                   شبكة المختبر المشتركة                          │
 │                                                                 │
 │  ┌──────────────────┐          ┌──────────────────────────┐     │
 │  │  VM1: ELK Server │          │  VM2: Linux Client       │     │
-│  │  (Ubuntu Server)  │◄────────│  (Ubuntu Desktop/Server) │     │
+│  │  (Ubuntu Server)  │◄────────│  (Ubuntu 24.04 Target)   │     │
 │  │                   │ Filebeat│                           │     │
 │  │  - Elasticsearch  │ :5044   │  - Filebeat              │     │
 │  │  - Logstash       │         │  - OpenSSH Server        │     │
@@ -61,17 +61,17 @@ The lab environment consists of **4 Virtual Machines** on an isolated internal n
 │  │                   │         └──────────────────────────┘     │
 │  │  Ports:           │                                          │
 │  │   9200 (ES)       │         ┌──────────────────────────┐     │
-│  │   5044 (Logstash) │◄────────│  VM3: Windows Client     │     │
-│  │   5601 (Kibana)   │Winlogbeat│  (Windows 10/11)        │     │
-│  │                   │ :5044   │                           │     │
+│  │   5044 (Logstash) │◄────────│ Host: Windows Machine    │     │
+│  │   5601 (Kibana)   │Winlogbeat│ (Physical Host Running   │     │
+│  │                   │ :5044   │  Hypervisor + VMs)       │     │
 │  └──────────────────┘         │  - Winlogbeat             │     │
-│                                │  - RDP Enabled            │     │
-│         ▲                      │  - Security Event Logs    │     │
+│                                │  - RDP Port 3389 (Scoped) │     │
+│         ▲                      │  - 'testrdp' Test User    │     │
 │         │                      └──────────────────────────┘     │
 │         │                                                        │
 │  ┌──────┴───────────────┐                                       │
-│  │  VM4: Kali Attacker  │──────► Attacks SSH (VM2)              │
-│  │  (Kali Linux)        │──────► Attacks RDP (VM3)              │
+│  │  VM3: Kali Attacker  │──────► Attacks SSH (VM2: Linux Target) │
+│  │  (Kali Linux VM)     │──────► Attacks RDP (Host: Windows RDP)│
 │  │                      │                                       │
 │  │  - Nmap              │                                       │
 │  │  - Hydra             │                                       │
@@ -79,12 +79,12 @@ The lab environment consists of **4 Virtual Machines** on an isolated internal n
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-| VM | Role / الدور | OS | IP (Example) |
-|---|---|---|---|
-| VM1 | ELK Server / خادم ELK | Ubuntu Server 22.04+ | `192.168.1.10` |
-| VM2 | Linux Client / عميل لينكس | Ubuntu Desktop/Server 22.04+ | `192.168.1.11` |
-| VM3 | Windows Client / عميل ويندوز | Windows 10/11 | `192.168.1.12` |
-| VM4 | Attacker / المهاجم | Kali Linux | `192.168.1.13` |
+| Node / الجهاز | Role / الدور | Machine Type / نوع الجهاز | OS | IP (Example) |
+|---|---|---|---|---|
+| **Host** | Windows Client (Target) / عميل ويندوز الهدف | **Physical Host (جهاز مضيف فيزيائي)** | Windows 10/11 Pro/Ent | `192.168.1.12` |
+| **VM1** | ELK Server / خادم المراقبة | Virtual Machine (جهاز افتراضي) | Ubuntu Server 24.04 | `192.168.1.10` |
+| **VM2** | Linux Client (Target) / عميل لينكس الهدف | Virtual Machine (جهاز افتراضي) | Ubuntu Server 24.04 | `192.168.1.20` |
+| **VM3** | Kali Attacker / جهاز المهاجم | Virtual Machine (جهاز افتراضي) | Kali Linux | `192.168.1.13` |
 
 ---
 
@@ -116,14 +116,16 @@ ELK-Security-Log-Monitoring/
 
 ## ✅ Prerequisites / المتطلبات
 
-| Requirement | Details |
+| Requirement / المتطلب | Details / التفاصيل |
 |---|---|
-| Hypervisor | VirtualBox, VMware, or Hyper-V |
-| VM1 RAM | Minimum **4 GB** (recommended 8 GB for ELK) |
-| VM2/VM3/VM4 RAM | Minimum **2 GB** each |
-| Windows Edition | **Pro, Enterprise, or Education** — Windows 11 **Home** cannot host incoming RDP connections |
-| Network Mode | Internal Network or Host-Only (all VMs on the same subnet) |
-| Internet Access | Required during initial setup for downloading packages |
+| **Physical Host** | Windows 10/11 **Pro, Enterprise, or Education** (Runs Hypervisor; Home edition cannot accept incoming RDP) |
+| **Physical Host RAM** | Minimum **16 GB** recommended (Hosts OS + Hypervisor + all 3 VMs) |
+| **VM1 (ELK Server) RAM** | Minimum **4 GB** (recommended 6–8 GB for Elasticsearch/Kibana) |
+| **VM2 (Linux Client) RAM**| Minimum **2 GB** |
+| **VM3 (Kali Attacker) RAM**| Minimum **2 GB** |
+| **Hypervisor** | VMware Workstation, VirtualBox, or Hyper-V |
+| **Network Mode** | Bridged or Host-Only (Host and all 3 VMs must be reachable on the same subnet) |
+| **Internet Access** | Required during initial setup for downloading packages/Docker images |
 
 ---
 
@@ -223,17 +225,17 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 
 ---
 
-### Step 4️⃣ — Attack Simulation (VM4 - Kali) / محاكاة الهجمات
+### Step 4️⃣ — Attack Simulation (Kali VM) / محاكاة الهجمات (كالي لينكس)
 
 ```bash
 cd ELK-Security-Log-Monitoring/4-kali-attacker
 
 # Run attack simulation (interactive or single-quoted password):
 # تشغيل محاكاة الهجمات (تفاعلي أو بكلمة مرور مقتبسة):
-sudo bash attack_simulation.sh 192.168.1.11 192.168.1.12 'Admin123!@#'
+sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12 'Admin123!@#'
 
 # Or run interactively without password:
-# sudo bash attack_simulation.sh 192.168.1.11 192.168.1.12
+# sudo bash attack_simulation.sh 192.168.1.20 192.168.1.12
 ```
 
 The script will:
@@ -244,7 +246,7 @@ The script will:
 
 > [!NOTE]
 > The `TARGET_PASSWORD` you pass here must match the `-TestPassword` you used
-> in Step 3 for the Windows `testuser` account (and the password used for
+> in Step 3 for the Windows `testrdp` account (and the password used for
 > Linux `testuser` in Step 2) so both brute-force phases end in a successful
 > login. If your Hydra build has trouble with RDP + NLA, update Hydra/FreeRDP
 > to a recent version — current Hydra releases support NLA/CredSSP.
