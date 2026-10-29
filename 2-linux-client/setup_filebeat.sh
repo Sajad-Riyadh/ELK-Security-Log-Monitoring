@@ -44,9 +44,22 @@ echo "[*] Installing openssh-server..."
 apt-get update -y
 apt-get install -y openssh-server
 
-echo "[*] Enabling PasswordAuthentication in sshd_config..."
-sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
-systemctl restart sshd
+echo "[*] Enabling PasswordAuthentication in ssh configuration..."
+sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config 2>/dev/null || true
+mkdir -p /etc/ssh/sshd_config.d
+echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/60-password-auth.conf
+
+# Restart SSH service (Ubuntu/Debian uses 'ssh', CentOS/RHEL uses 'sshd')
+if systemctl list-unit-files | grep -q "^ssh\.service"; then
+    systemctl restart ssh
+elif systemctl list-unit-files | grep -q "^sshd\.service"; then
+    systemctl restart sshd
+else
+    service ssh restart 2>/dev/null || service sshd restart 2>/dev/null || true
+fi
+
+# On modern Ubuntu (24.04+), socket activation is also used
+systemctl restart ssh.socket 2>/dev/null || true
 echo "[+] SSH server configured."
 
 # ---- 2. Create test user ----
