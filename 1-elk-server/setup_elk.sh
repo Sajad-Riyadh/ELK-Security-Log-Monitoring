@@ -137,11 +137,25 @@ fi
 echo "[*] Starting Kibana and Logstash..."
 sudo docker compose up -d kibana logstash
 
+# ---- 8. Provision Observability Alert Rules (if python3 is available) ----
+if command -v python3 &>/dev/null && [ -f "${SCRIPT_DIR}/setup_rules.py" ]; then
+    echo "[*] Waiting for Kibana to become ready to provision alert rules..."
+    for i in {1..30}; do
+        if curl -sf -u "${ADMIN_USER}:${ADMIN_PASSWORD}" http://localhost:5601/api/status &>/dev/null; then
+            echo "[*] Provisioning Observability Alert Rules..."
+            python3 "${SCRIPT_DIR}/setup_rules.py" "http://localhost:5601" "${ADMIN_USER}" "${ADMIN_PASSWORD}" || true
+            break
+        fi
+        sleep 3
+    done
+fi
+
 echo ""
 echo "============================================="
 echo " ELK Stack is UP and RUNNING with AUTHENTICATION!"
 echo "---------------------------------------------"
 echo " Kibana Dashboard : http://<SERVER_IP>:5601"
+echo " Observability    : http://<SERVER_IP>:5601/app/observability/alerts"
 echo " Elasticsearch    : http://<SERVER_IP>:9200"
 echo " Logstash Beats   : port 5044"
 echo "---------------------------------------------"

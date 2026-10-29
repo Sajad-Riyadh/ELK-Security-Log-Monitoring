@@ -257,6 +257,26 @@ Use these **KQL (Kibana Query Language)** filters in the Discover tab or when cr
 
 استخدم استعلامات **KQL** التالية في تبويب Discover أو عند إنشاء قواعد التنبيه:
 
+### Automated Alert Rules Provisioning / إعداد قواعد التنبيهات تلقائياً
+
+You can automatically provision the 3 core security rules into **Kibana Observability** using the included helper script:
+
+```bash
+# Run from the ELK server:
+cd 1-elk-server
+python3 setup_rules.py http://localhost:5601 elastic 'YourPassword'
+```
+
+Rules created:
+1. **🚨 SSH Brute Force Detection**: Triggers when failed passwords > 3 within 5 minutes.
+2. **🚨 Windows RDP Brute Force Detection**: Triggers when Windows Event 4625 > 3 within 5 minutes.
+3. **🟢 Successful Login After Attack**: Triggers when an accepted login occurs after attacks.
+
+View active alerts in real-time at:
+👉 `http://<SERVER_IP>:5601/app/observability/alerts`
+
+---
+
 ### Linux SSH Events / أحداث SSH في لينكس
 
 | Event / الحدث | KQL Filter / استعلام KQL | Description / الوصف |
