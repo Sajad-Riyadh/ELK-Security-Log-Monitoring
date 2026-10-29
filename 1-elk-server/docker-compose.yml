@@ -1,9 +1,6 @@
 # =============================================================================
 # ELK Stack - Docker Compose (v8.17.0)
-# Security Log Monitoring System for a Small Network
-# =============================================================================
-# WARNING: xpack.security.enabled=false is for an ISOLATED LAB ONLY.
-#          Never use this configuration on production or internet-facing systems.
+# Security Log Monitoring System with Authentication & Alert Dashboard
 # =============================================================================
 
 services:
@@ -12,7 +9,9 @@ services:
     container_name: elasticsearch
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=Admin123!@#
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     volumes:
       - es-data:/usr/share/elasticsearch/data
@@ -22,11 +21,30 @@ services:
       - elk-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf -u elastic:Admin123!@# http://localhost:9200/_cluster/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 10
       start_period: 30s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=Admin123!@#
+      - XPACK_SECURITY_ENCRYPTIONKEY=4cf51532f8973ad92a6414777d4c8901
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=4cf51532f8973ad92a6414777d4c8901
+      - XPACK_REPORTING_ENCRYPTIONKEY=4cf51532f8973ad92a6414777d4c8901
+    ports:
+      - "5601:5601"
+    networks:
+      - elk-network
+    restart: unless-stopped
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.17.0
@@ -35,20 +53,6 @@ services:
       - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
     ports:
       - "5044:5044"
-    networks:
-      - elk-network
-    restart: unless-stopped
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.17.0
-    container_name: kibana
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    ports:
-      - "5601:5601"
     networks:
       - elk-network
     restart: unless-stopped

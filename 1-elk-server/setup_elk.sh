@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
-# ELK Server Setup Script
-# Installs Docker, tunes the kernel for Elasticsearch, and launches the stack.
+# ELK Server Setup Script (with Authentication Enabled)
+# Installs Docker, tunes sysctl, starts Elasticsearch, configures Kibana
+# authentication, and brings up the full monitoring stack.
 # Run as root or with sudo on Ubuntu/Debian.
 # =============================================================================
 set -euo pipefail
 
+ELASTIC_PASSWORD="${ELASTIC_PASSWORD:-Admin123!@#}"
+
 echo "============================================="
-echo " ELK Stack - Server Setup"
+echo " ELK Stack - Server Setup (Production Mode)"
 echo "============================================="
 
 # ---- 1. Install Docker (official method) ----
@@ -44,16 +47,40 @@ else
 fi
 echo "[+] vm.max_map_count persisted in /etc/sysctl.conf."
 
-# ---- 3. Launch the ELK stack ----
+# ---- 3. Launch Elasticsearch ----
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-echo "[*] Starting ELK stack from ${SCRIPT_DIR}..."
 cd "$SCRIPT_DIR"
-sudo docker compose up -d
+
+echo "[*] Starting Elasticsearch container..."
+sudo docker compose up -d elasticsearch
+
+echo "[*] Waiting for Elasticsearch to become healthy..."
+until curl -sf -u "elastic:${ELASTIC_PASSWORD}" http://localhost:9200/_cluster/health >/dev/null; do
+    sleep 3
+done
+echo "[+] Elasticsearch is healthy."
+
+# ---- 4. Set password for internal kibana_system service account ----
+echo "[*] Configuring internal kibana_system credentials..."
+curl -s -X POST -u "elastic:${ELASTIC_PASSWORD}" \
+  -H "Content-Type: application/json" \
+  http://localhost:9200/_security/user/kibana_system/_password \
+  -d "{\"password\":\"${ELASTIC_PASSWORD}\"}" >/dev/null
+echo "[+] kibana_system service account configured."
+
+# ---- 5. Launch Kibana and Logstash ----
+echo "[*] Starting Kibana and Logstash..."
+sudo docker compose up -d kibana logstash
 
 echo ""
 echo "============================================="
-echo " ELK Stack is starting up!"
-echo " Elasticsearch : http://<SERVER_IP>:9200"
-echo " Kibana        : http://<SERVER_IP>:5601"
-echo " Logstash Beats: port 5044"
+echo " ELK Stack is UP and RUNNING with AUTHENTICATION!"
+echo "---------------------------------------------"
+echo " Kibana Dashboard : http://<SERVER_IP>:5601"
+echo " Elasticsearch    : http://<SERVER_IP>:9200"
+echo " Logstash Beats   : port 5044"
+echo "---------------------------------------------"
+echo " Login Credentials:"
+echo "   Username : elastic"
+echo "   Password : ${ELASTIC_PASSWORD}"
 echo "============================================="

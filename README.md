@@ -155,7 +155,7 @@ Verify Elasticsearch is running:
 تحقق من تشغيل Elasticsearch:
 
 ```bash
-curl http://localhost:9200
+curl -u elastic:Admin123!@# http://localhost:9200
 ```
 
 Access Kibana at: `http://<ELK_SERVER_IP>:5601`
